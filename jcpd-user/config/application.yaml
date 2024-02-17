@@ -1,0 +1,22 @@
+# 应用配置
+application:
+  server:
+    port: 6061
+    name: project-user
+
+# redis 配置
+redis:
+  addr: 127.0.0.1:6379
+  password:
+  DB: 0
+  poolSize: 10
+  minIdleConn: 5
+
+# mysql 配置
+mysql:
+  dsn:
+    user: root
+    password: 123456
+    addr: 127.0.0.1:3306
+  basename: sws
+  others: charset=utf8mb4&parseTime=True&loc=Local

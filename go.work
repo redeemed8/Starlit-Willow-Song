@@ -2,6 +2,7 @@ go 1.20
 
 use (
 	./jcpd-common
+	./jcpd-gateway
 	./jcpd-mall
 	./jcpd-post
 	./jcpd-talk
