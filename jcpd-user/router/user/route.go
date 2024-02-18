@@ -23,5 +23,8 @@ func (*RouterUser) Router(r *gin.Engine) {
 	userserviceGroup := r.Group("/users")
 	{
 		userserviceGroup.GET("/getCaptcha", handler.GetCaptcha)
+		userserviceGroup.POST("/register", handler.RegisterUser)
+		userserviceGroup.POST("/login/mobile", handler.LoginMobile)
+		userserviceGroup.POST("/bind/mobile", handler.UserBindMobile)
 	}
 }

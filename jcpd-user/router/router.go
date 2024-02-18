@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"jcpd.cn/user/internal/models"
 )
 
 // Router 路由接口
@@ -14,6 +15,9 @@ var routers []Router
 
 // InitRouter 根据路由列表 初始化路由引擎
 func InitRouter(r *gin.Engine) {
+	//	创建表
+	models.CreateTables()
+	//  根据路由列表 初始化路由引擎
 	for _, ro := range routers {
 		ro.Router(r)
 	}

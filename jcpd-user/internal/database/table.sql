@@ -1,7 +1,7 @@
 # 创建 userinfo 表
 CREATE TABLE IF NOT EXISTS 5613_userinfo
 (
-    id         int AUTO_INCREMENT PRIMARY KEY,
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     phone      varchar(12) UNIQUE,
     username   varchar(30) UNIQUE,
     password   varchar(33),
