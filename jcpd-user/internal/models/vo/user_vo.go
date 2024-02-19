@@ -5,10 +5,14 @@ var UserVoHelper UserVoHelper_
 type UserVoHelper_ struct{}
 
 type UserVo struct {
-	RegisterVo    RegisterVo
-	LoginMobileVo LoginMobileVo
-	BindMobileVo  BindMobileVo
-	LoginPasswdVo LoginPasswdVo
+	RegisterVo       RegisterVo
+	LoginMobileVo    LoginMobileVo
+	LoginPasswdVo    LoginPasswdVo
+	BindMobileVo     BindMobileVo
+	RepwdCheckVo     RepwdCheckVo
+	RepwdVo          RepwdVo
+	UpdateUserInfoVo UpdateUserInfoVo
+	PositionVo       PositionVo
 }
 
 func (*UserVoHelper_) NewUserVo() *UserVo {
