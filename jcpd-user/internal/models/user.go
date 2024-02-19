@@ -74,6 +74,13 @@ func (info *UserInfoDao_) GetUserByPhone(phone string) (UserInfo, error) {
 	return userinfo, result.Error
 }
 
+// GetUsersByMap 根据 指定字段值 获取 一个或多个用户信息
+func (info *UserInfoDao_) GetUsersByMap(columnMap map[string]interface{}) ([]UserInfo, error) {
+	var userinfos []UserInfo
+	result := options.C.DB.Where(columnMap).Find(userinfos)
+	return userinfos, result.Error
+}
+
 // UpdateUserByMap 根据 id 更新map里的指定列
 func (info *UserInfoDao_) UpdateUserByMap(id uint32, columnMap map[string]interface{}) error {
 	return options.C.DB.Model(&UserInfo{}).Where("id = ?", id).Updates(columnMap).Error
@@ -108,4 +115,13 @@ func (util *UserInfoUtil_) IsLogin(ctx *gin.Context, resp *common.Resp) (*common
 		return &definition.NotLogin, userClaims
 	}
 	return nil, userClaims
+}
+
+func (util *UserInfoUtil_) TransSex(sexCode string) string {
+	if sexCode == Man {
+		return "男"
+	} else if sexCode == Woman {
+		return "女"
+	}
+	return "未知"
 }

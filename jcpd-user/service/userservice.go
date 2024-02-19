@@ -66,7 +66,7 @@ func (h *UserHandler) GetCaptcha(ctx *gin.Context) {
 		constants.RedisErr("获取验证码异常", err)
 		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
 		//	...
-		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
 	if queryCode != "" {
@@ -115,7 +115,7 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 		constants.MysqlErr("根据用户名获取用户异常", err1)
 		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
 		//	...
-		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
 	if queryUser.Username != "" {
@@ -134,7 +134,7 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 		constants.MysqlErr("创建用户失败", err1)
 		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
 		//	...
-		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
 	ctx.JSON(http.StatusOK, resp.Success("注册成功，请登录"))
@@ -166,7 +166,7 @@ func (h *UserHandler) LoginMobile(ctx *gin.Context) {
 		constants.RedisErr("查询验证码失败", err1)
 		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
 		//	...
-		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
 	if queryCaptcha == "" || err1 == redis.Nil {
@@ -183,7 +183,7 @@ func (h *UserHandler) LoginMobile(ctx *gin.Context) {
 		constants.MysqlErr("根据手机号获取用户异常", err2)
 		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
 		//	...
-		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
 	var userClaim commonJWT.UserClaims
@@ -200,7 +200,7 @@ func (h *UserHandler) LoginMobile(ctx *gin.Context) {
 			constants.MysqlErr("创建用户失败", err3)
 			//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
 			//	...
-			ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+			ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 			return
 		}
 		userClaim.Id = userinfo.Id
@@ -212,6 +212,44 @@ func (h *UserHandler) LoginMobile(ctx *gin.Context) {
 	}
 	//	4. 返回 登录token
 	token, _ := commonJWT.MakeToken(userClaim)
+	ctx.JSON(http.StatusOK, resp.Success(token))
+}
+
+// LoginPasswd 用户名密码登录 - 需要注册
+// api : /users/login/passwd  [post]
+// post_args : {"username":"xxx","password":"xxx"} json
+func (h *UserHandler) LoginPasswd(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 绑定参数
+	var loginInfo = vo.UserVoHelper.NewUserVo().LoginPasswdVo
+	if err := ctx.ShouldBind(&loginInfo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	2. 参数校验
+	if len(loginInfo.Username) > 31 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFound))
+		return
+	}
+	queryUser, err1 := models.UserInfoDao.GetUserByUsername(loginInfo.Username)
+	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("创建用户失败", err1)
+		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
+		//	...
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryUser.Username == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFound))
+		return
+	}
+	//	3. 校验密码 md5
+	if queryUser.Password != utils.Md5Sum(loginInfo.Password) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PwdError))
+		return
+	}
+	//	4. 用户名密码用过，发放 token
+	token, _ := commonJWT.MakeToken(commonJWT.UserClaims{Id: queryUser.Id, UUID: queryUser.UUID})
 	ctx.JSON(http.StatusOK, resp.Success(token))
 }
 
@@ -246,7 +284,7 @@ func (h *UserHandler) UserBindMobile(ctx *gin.Context) {
 		constants.RedisErr("查询验证码失败", err1)
 		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
 		//	...
-		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
 	if queryCaptcha == "" || err1 == redis.Nil {
@@ -260,6 +298,40 @@ func (h *UserHandler) UserBindMobile(ctx *gin.Context) {
 	//	4. 验证码正确，进行绑定操作
 	columnMap := make(map[string]interface{})
 	columnMap["phone"] = bind.Mobile
-	_ = models.UserInfoDao.UpdateUserByMap(userClaim.Id, columnMap)
+	err9 := models.UserInfoDao.UpdateUserByMap(userClaim.Id, columnMap)
+	if err9 != nil && !errors.Is(err9, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("绑定用户手机号失败", err9)
+		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
+		//	...
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
 	ctx.JSON(http.StatusOK, resp.Success("手机号已更新"))
+}
+
+// GetRepasswdToken	忘记密码/修改密码前置操作 - 申请修改权限
+// api : /users/repasswd/check  [post]
+// post_args : {"username":"xxx","mobile":"xxx","captcha":"xxx"}  json
+func (h *UserHandler) GetRepasswdToken(ctx *gin.Context) {
+
+}
+
+// Repassword 修改密码
+// api : /users/repasswd  [post]
+// post_args : {"auth2":"xx.xx.xx","password":"xxx","repassword":"xxx"} json TOKEN
+func (h *UserHandler) Repassword(ctx *gin.Context) {
+
+}
+
+// UpdateUserInfo 修改 用户名、性别、个性签名 - 不想修改的字段传空字符串即可
+// api : /users/update/info [post]
+// post_args : {"username":"","sex":"","sign":""} json LOGIN
+func (h *UserHandler) UpdateUserInfo(ctx *gin.Context) {
+
+}
+
+// GetUserInfo 获取用户信息
+// api : /users/get/info  [get] LOGIN
+func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
+
 }

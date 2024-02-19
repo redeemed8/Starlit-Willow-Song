@@ -8,6 +8,7 @@ type UserVo struct {
 	RegisterVo    RegisterVo
 	LoginMobileVo LoginMobileVo
 	BindMobileVo  BindMobileVo
+	LoginPasswdVo LoginPasswdVo
 }
 
 func (*UserVoHelper_) NewUserVo() *UserVo {
@@ -23,6 +24,11 @@ type RegisterVo struct {
 type LoginMobileVo struct {
 	Mobile  string `json:"mobile"`
 	Captcha string `json:"captcha"`
+}
+
+type LoginPasswdVo struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type BindMobileVo struct {

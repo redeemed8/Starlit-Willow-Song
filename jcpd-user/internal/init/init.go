@@ -7,6 +7,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/options"
 	"log"
 	"os"
@@ -48,32 +49,37 @@ func init() {
 		log.Fatalf("Application one failed to connect Mysql database , cause by : %v ... \n", err)
 	}
 	if options.C.DB == nil {
-		log.Fatalln("Application one failed to connect Mysql database , cause by the connection is abnormal ...")
+		log.Fatalln("Application one failed to connect Mysql database , cause by the connection is abnormal , db == nil ...")
 	}
 	var version string
 	if err1 := options.C.DB.Raw("Select version()").Scan(&version).Error; err1 != nil || version == "" {
 		log.Fatalf("Application one failed to connect Mysql database , cause by the connection is abnormal by test , err = %v ... \n", err1)
 	}
+	constants.MysqlLogger = &newLogger
+	constants.MysqlDsn = dsn
+	constants.MysqlStatus = constants.OK
 	log.Println("Application one connect Mysql database successfully ...")
 }
 
 // 初始化 redis
 func init() {
-	options.C.RDB = redis.NewClient(
-		&redis.Options{
-			Addr:         options.C.Redis.Addr,
-			Password:     options.C.Redis.Password,
-			DB:           options.C.Redis.DB,
-			PoolSize:     options.C.Redis.PoolSize,
-			MinIdleConns: options.C.Redis.MinIdleConn,
-		})
+	redisOptions := &redis.Options{
+		Addr:         options.C.Redis.Addr,
+		Password:     options.C.Redis.Password,
+		DB:           options.C.Redis.DB,
+		PoolSize:     options.C.Redis.PoolSize,
+		MinIdleConns: options.C.Redis.MinIdleConn,
+	}
+	options.C.RDB = redis.NewClient(redisOptions)
 	if options.C.RDB == nil {
-		log.Fatalln("Application one failed to connect Redis database , cause by the connection is abnormal ...")
+		log.Fatalln("Application one failed to connect Redis database , cause by the connection is abnormal , rdb == nil ... ")
 	}
 
 	_, err := options.C.RDB.Ping(context.Background()).Result()
 	if err != nil {
 		log.Fatalf("Application one failed to connect Redis database , cause by the connection is abnormal by test , err = %v ... \n", err)
 	}
+	constants.RedisOptions = redisOptions
+	constants.RedisStatus = constants.OK
 	log.Println("Application one connect Redis database successfully ...")
 }
