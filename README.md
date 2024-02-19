@@ -22,7 +22,7 @@
 </h4>
 &emsp;1.&emsp;高耦合低内聚 + 异常自动重试<br>
 &emsp;&emsp;<i>比如可以随时切换缓存配置，是使用了接口进行解耦</i><br>
-&emsp;&emsp;<i>以及发现mysql或redis崩溃时，可以及时报警，并定时进行重连</i><br><br>
+&emsp;&emsp;<i>以及发现mysql或redis崩溃时，可以及时报警，并定时进行重连，无需重启服务</i><br><br>
 
 &emsp;2.&emsp;采用三层限流设计<br>
 &emsp;&emsp;<i>第一层是 使用nginx对 ip 进行限流访问</i><br>
