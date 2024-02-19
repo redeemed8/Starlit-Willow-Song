@@ -41,7 +41,7 @@ func NewUserHandler(type_ definition.CacheType) *UserHandler {
 	return &UserHandler{cache: cache_}
 }
 
-// GetCaptcha 根据手机号获取验证码
+// GetCaptcha 根据手机号获取验证码,mode为验证码用途,0登录/1修改密码/2绑定手机
 // api : /users/getCaptcha?mobile=xxx&mode=xxx	[get]
 func (h *UserHandler) GetCaptcha(ctx *gin.Context) {
 	resp := common.NewResp()
@@ -140,7 +140,7 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, resp.Success("注册成功，请登录"))
 }
 
-// LoginMobile 用户 手机号登录 -- 不用注册
+// LoginMobile 用户 手机号验证码登录 -- 不用注册
 // api : /users/login/mobile  [post]
 // post_args : {"mobile":"1xxxxxxxxxx","captcha":"xxx"}  json
 func (h *UserHandler) LoginMobile(ctx *gin.Context) {
@@ -313,25 +313,38 @@ func (h *UserHandler) UserBindMobile(ctx *gin.Context) {
 // api : /users/repasswd/check  [post]
 // post_args : {"username":"xxx","mobile":"xxx","captcha":"xxx"}  json
 func (h *UserHandler) GetRepasswdToken(ctx *gin.Context) {
-
+	ctx.JSON(http.StatusOK, "testing ... ")
 }
 
 // Repassword 修改密码
-// api : /users/repasswd  [post]
-// post_args : {"auth2":"xx.xx.xx","password":"xxx","repassword":"xxx"} json TOKEN
+// api : /users/repasswd?auth2=xx.xx.xx  [post]
+// post_args : {"password":"xxx","repassword":"xxx"} json TOKEN
 func (h *UserHandler) Repassword(ctx *gin.Context) {
-
+	ctx.JSON(http.StatusOK, "testing ... ")
 }
 
 // UpdateUserInfo 修改 用户名、性别、个性签名 - 不想修改的字段传空字符串即可
 // api : /users/update/info [post]
 // post_args : {"username":"","sex":"","sign":""} json LOGIN
 func (h *UserHandler) UpdateUserInfo(ctx *gin.Context) {
-
+	ctx.JSON(http.StatusOK, "testing ... ")
 }
 
-// GetUserInfo 获取用户信息
+// GetUserInfo 获取用户基本信息
 // api : /users/get/info  [get] LOGIN
 func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, "testing ... ")
+}
 
+// UploadUserCurPos 上传用户 当前经纬度坐标 -- 可以选择在用户登录,或进入程序时调用
+// api : /users/upload/cur/pos  [post]
+// post_args : {"longitude":"xxx","latitude":"xxx"} json LOGIN
+func (h *UserHandler) UploadUserCurPos(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, "testing...")
+}
+
+// GetUserNearby 获取附近的用户 - 可以指定范围半径 (单位：km)
+// api : /users/get/friend/nearby?r=xxx  [get] LOGIN
+func (h *UserHandler) GetUserNearby(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, "testing...")
 }

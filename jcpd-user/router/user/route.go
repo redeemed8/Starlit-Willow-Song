@@ -24,12 +24,19 @@ func (*RouterUser) Router(r *gin.Engine) {
 	{
 		userserviceGroup.GET("/getCaptcha", handler.GetCaptcha)
 		userserviceGroup.POST("/register", handler.RegisterUser)
+
 		userserviceGroup.POST("/login/mobile", handler.LoginMobile)
 		userserviceGroup.POST("/login/passwd", handler.LoginPasswd)
+
 		userserviceGroup.POST("/bind/mobile", handler.UserBindMobile)
+
 		userserviceGroup.POST("/repasswd/check", handler.GetRepasswdToken)
 		userserviceGroup.POST("/repasswd", handler.Repassword)
+
 		userserviceGroup.POST("/update/info", handler.UpdateUserInfo)
 		userserviceGroup.GET("/get/info", handler.GetUserInfo)
+
+		userserviceGroup.POST("/upload/cur/pos", handler.UploadUserCurPos)
+		userserviceGroup.GET("/get/friend/nearby", handler.GetUserNearby)
 	}
 }

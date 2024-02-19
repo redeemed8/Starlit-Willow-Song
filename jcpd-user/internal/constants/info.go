@@ -76,7 +76,7 @@ func handleErr(msg string, err error, device DeviceType) {
 	return
 }
 
-const TickerTime = 30 * time.Second
+const TickerTime = 15 * time.Second
 
 func listenRecover(device DeviceType) {
 	// 定时任务，每 TickerTime 执行一次

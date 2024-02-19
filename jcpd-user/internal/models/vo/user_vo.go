@@ -35,3 +35,25 @@ type BindMobileVo struct {
 	Mobile  string `json:"mobile"`
 	Captcha string `json:"captcha"`
 }
+
+type RepwdCheckVo struct {
+	Username string `json:"username"`
+	Mobile   string `json:"mobile"`
+	Captcha  string `json:"captcha"`
+}
+
+type RepwdVo struct {
+	Password   string `json:"password"`
+	Repassword string `json:"repassword"`
+}
+
+type UpdateUserInfoVo struct {
+	Username string `json:"username"`
+	Sex      string `json:"sex"`
+	Sign     string `json:"sign"`
+}
+
+type PositionVo struct {
+	Longitude float64 `json:"longitude"` //	经度
+	Latitude  float64 `json:"latitude"`  //	纬度
+}
