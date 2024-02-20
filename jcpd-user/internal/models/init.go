@@ -6,11 +6,16 @@ import (
 	"log"
 )
 
-func CreateTables() {
-
+func InitUser() {
 	//	初始化 jwt的数据库连接
 	commonJWT.NewDB(options.C.DB)
 
+	NewUserInfoDao()
+
+	CreateTables()
+}
+
+func CreateTables() {
 	log.Println("------------------- create tables --------------------")
 
 	UserInfoDao.CreateTable()

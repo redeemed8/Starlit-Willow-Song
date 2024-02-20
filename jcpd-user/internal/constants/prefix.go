@@ -1,5 +1,7 @@
 package constants
 
+import "time"
+
 const (
 	RdbLoginCode  = "captcha.login."
 	RdbForgetCode = "captcha.forget."
@@ -26,3 +28,8 @@ func MatchModeCode(mode string) (prefix string) {
 	prefix = captchaModeMap[mode]
 	return prefix
 }
+
+const (
+	RepwdCheckPrefix = "repwd.check."
+	RepwdCheckExpire = 10 * time.Minute
+)

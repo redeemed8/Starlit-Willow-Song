@@ -47,6 +47,7 @@ type RepwdCheckVo struct {
 }
 
 type RepwdVo struct {
+	Mobile     string `json:"mobile"`
 	Password   string `json:"password"`
 	Repassword string `json:"repassword"`
 }

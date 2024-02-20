@@ -7,7 +7,9 @@ var (
 	InvalidArgs       = common.NormalErr{Code: 1002, Msg: "请求参数有误"}
 	ServerMaintaining = common.NormalErr{Code: 1003, Msg: "服务维护中，请稍后再试"}
 
-	InvalidMobile = common.NormalErr{Code: 3001, Msg: "手机号格式不规范"}
+	InvalidMobile  = common.NormalErr{Code: 3001, Msg: "手机号格式不规范"}
+	NotMatchMobile = common.NormalErr{Code: 3002, Msg: "用户名和手机号不匹配"}
+	PhoneNotFound  = common.NormalErr{Code: 3003, Msg: "手机号信息不存在"}
 
 	InvalidMode     = common.NormalErr{Code: 3011, Msg: "验证码模式错误"}
 	FrequentCaptcha = common.NormalErr{Code: 3012, Msg: "验证码每分钟只能发送一次"}
@@ -21,5 +23,10 @@ var (
 	UnameExists    = common.NormalErr{Code: 3032, Msg: "该用户名已被使用"}
 	UnameNotFound  = common.NormalErr{Code: 3033, Msg: "用户名不存在"}
 
-	NotLogin = common.NormalErr{Code: 3010, Msg: "未登录或登录已过期"}
+	NotLogin      = common.NormalErr{Code: 3041, Msg: "未登录或登录已过期"}
+	NotAuth2Token = common.NormalErr{Code: 3042, Msg: "无权限令牌不能修改"}
+	Auth2TokenErr = common.NormalErr{Code: 3043, Msg: "令牌无效或已过期"}
+
+	SignNotFormat = common.NormalErr{Code: 3051, Msg: "签名不符合规范"}
+	SexNotFormat  = common.NormalErr{Code: 3052, Msg: "性别有误，未知性别"}
 )

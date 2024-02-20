@@ -3,12 +3,16 @@ package models
 import (
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/copier"
+	"gorm.io/gorm"
 	common "jcpd.cn/common/models"
 	commonJWT "jcpd.cn/common/utils/jwt"
 	"jcpd.cn/user/internal/constants"
+	"jcpd.cn/user/internal/models/dto"
 	"jcpd.cn/user/internal/options"
 	"jcpd.cn/user/pkg/definition"
 	"jcpd.cn/user/utils"
+	"log"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -18,8 +22,12 @@ import (
 var UserInfoDao UserInfoDao_
 var UserInfoUtil UserInfoUtil_
 
-type UserInfoDao_ struct{}
+type UserInfoDao_ struct{ DB *gorm.DB }
 type UserInfoUtil_ struct{}
+
+func NewUserInfoDao() {
+	UserInfoDao = UserInfoDao_{DB: options.C.DB}
+}
 
 const (
 	DefaultSex = "2"
@@ -34,8 +42,15 @@ type UserInfo struct {
 	Password  string    `gorm:"size:33"`                  //	密码 - md5存储
 	UUID      string    `gorm:"size:37;not null"`         //	用户身份标识 - 存储在jwt中，会随着密码的修改而修改
 	Sex       string    `gorm:"size:2"`                   //	性别   0女  1男  2未知
-	Sign      string    `gorm:"type:longtext;"`           //	个性签名
+	Sign      string    `gorm:"type:longtext"`            //	个性签名
+	Location  Point     `gorm:"type:point"`               //	地理位置信息 - 默认为null
 	CreatedAt time.Time `gorm:"autoCreateTime"`           //	创建时间
+}
+
+// Point 定义地理位置结构体
+type Point struct {
+	Lat float64 `json:"lat"`
+	Lng float64 `json:"lng"`
 }
 
 // TableName 表名
@@ -45,45 +60,50 @@ func (table *UserInfo) TableName() string {
 
 // CreateTable 创建表
 func (info *UserInfoDao_) CreateTable() {
-	_ = options.C.DB.AutoMigrate(&UserInfo{})
+	_ = info.DB.AutoMigrate(&UserInfo{})
 }
 
 // CreateUser 创建用户信息
 func (info *UserInfoDao_) CreateUser(userinfo UserInfo) error {
-	return options.C.DB.Create(&userinfo).Error
+	return info.DB.Create(&userinfo).Error
 }
 
 // GetUserById 根据用户id获取用户信息
 func (info *UserInfoDao_) GetUserById(id uint32) (UserInfo, error) {
 	userinfo := UserInfo{}
-	result := options.C.DB.Where("id = ?", id).First(&userinfo)
+	result := info.DB.Where("id = ?", id).First(&userinfo)
 	return userinfo, result.Error
 }
 
 // GetUserByUsername 根据 用户名 获取用户信息
 func (info *UserInfoDao_) GetUserByUsername(username string) (UserInfo, error) {
 	userinfo := UserInfo{}
-	result := options.C.DB.Where("username = ?", username).First(&userinfo)
+	result := info.DB.Where("username = ?", username).First(&userinfo)
 	return userinfo, result.Error
 }
 
 // GetUserByPhone 根据 手机号 获取用户信息
 func (info *UserInfoDao_) GetUserByPhone(phone string) (UserInfo, error) {
 	userinfo := UserInfo{}
-	result := options.C.DB.Where("phone = ?", phone).First(&userinfo)
+	result := info.DB.Where("phone = ?", phone).First(&userinfo)
 	return userinfo, result.Error
 }
 
 // GetUsersByMap 根据 指定字段值 获取 一个或多个用户信息
 func (info *UserInfoDao_) GetUsersByMap(columnMap map[string]interface{}) ([]UserInfo, error) {
 	var userinfos []UserInfo
-	result := options.C.DB.Where(columnMap).Find(userinfos)
+	result := info.DB.Where(columnMap).Find(userinfos)
 	return userinfos, result.Error
 }
 
 // UpdateUserByMap 根据 id 更新map里的指定列
 func (info *UserInfoDao_) UpdateUserByMap(id uint32, columnMap map[string]interface{}) error {
-	return options.C.DB.Model(&UserInfo{}).Where("id = ?", id).Updates(columnMap).Error
+	return info.DB.Model(&UserInfo{}).Where("id = ?", id).Updates(columnMap).Error
+}
+
+// UpdateUser 根据 拥有UserInfo的部分字段的结构体来更新字段
+func (info *UserInfoDao_) UpdateUser(id uint32, anyInfo interface{}) error {
+	return info.DB.Model(&UserInfo{}).Where("id = ?", id).Updates(anyInfo).Error
 }
 
 // ----------------------------------
@@ -96,14 +116,27 @@ func (util *UserInfoUtil_) CheckUsername(username string) bool {
 	return regexp.MustCompile(constants.UsernameRegex).MatchString(username)
 }
 
+// CheckSign 检查个性签名是否合法
+func (util *UserInfoUtil_) CheckSign(sign string) bool {
+	if len(sign) > 150 || sign == "" {
+		return false
+	}
+	return regexp.MustCompile(constants.SignRegex).MatchString(sign)
+}
+
+// GetDefaultSex 获取默认性别
 func (util *UserInfoUtil_) GetDefaultSex() string {
 	return DefaultSex
 }
 
+const DefaultNamePrefix = "LXY"
+
+// GetDefaultName 获取默认用户名
 func (util *UserInfoUtil_) GetDefaultName() string {
-	return "用户" + utils.MakeCodeWithNumber(11, rand.Intn(10))
+	return DefaultNamePrefix + utils.MakeCodeWithNumber(11, rand.Intn(10))
 }
 
+// IsLogin 是否登录
 func (util *UserInfoUtil_) IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.UserClaims) {
 	userClaims, err := commonJWT.ParseToken(ctx)
 	if errors.Is(err, commonJWT.DBException) {
@@ -117,6 +150,7 @@ func (util *UserInfoUtil_) IsLogin(ctx *gin.Context, resp *common.Resp) (*common
 	return nil, userClaims
 }
 
+// TransSex 性别转换
 func (util *UserInfoUtil_) TransSex(sexCode string) string {
 	if sexCode == Man {
 		return "男"
@@ -124,4 +158,21 @@ func (util *UserInfoUtil_) TransSex(sexCode string) string {
 		return "女"
 	}
 	return "未知"
+}
+
+func (util *UserInfoUtil_) transToDto(userinfo UserInfo) dto.UserInfoDto {
+	var dto_ dto.UserInfoDto
+	err := copier.Copy(&dto_, &userinfo)
+	if err != nil {
+		log.Printf("Failed to copy struct , source == %v , dest == %v , err == %v ... \n", userinfo, dto_, err)
+	}
+	return dto_
+}
+
+func (util *UserInfoUtil_) TransToDtos(userinfos ...UserInfo) dto.UserInfoDtos {
+	var dtos dto.UserInfoDtos
+	for _, info := range userinfos {
+		dtos = append(dtos, util.transToDto(info))
+	}
+	return dtos
 }

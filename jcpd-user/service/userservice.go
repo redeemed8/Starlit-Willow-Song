@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,7 @@ import (
 	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/models"
 	"jcpd.cn/user/internal/models/vo"
+	"jcpd.cn/user/internal/options"
 	"jcpd.cn/user/pkg/definition"
 	"jcpd.cn/user/utils"
 	"log"
@@ -83,7 +85,8 @@ func (h *UserHandler) GetCaptcha(ctx *gin.Context) {
 		//	6. 缓存到 redis
 		err1 := h.cache.Put(key_, code, 1*time.Minute)
 		if err1 != nil {
-			log.Printf("Failed to save the mobile and captcha to redis : %s : %s , cause by : %v \n", key, code, err1)
+			msg := fmt.Sprintf("Failed to save the mobile and captcha to redis : %s : %s , cause by : %v \n", key, code, err1)
+			constants.RedisErr(msg, err1)
 		}
 	}(key)
 	ctx.JSON(http.StatusOK, resp.Success("验证码已发送"))
@@ -313,27 +316,186 @@ func (h *UserHandler) UserBindMobile(ctx *gin.Context) {
 // api : /users/repasswd/check  [post]
 // post_args : {"username":"xxx","mobile":"xxx","captcha":"xxx"}  json
 func (h *UserHandler) GetRepasswdToken(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing ... ")
+	resp := common.NewResp()
+	//	1. 绑定参数
+	repwdCheckVo := vo.UserVoHelper.NewUserVo().RepwdCheckVo
+	if err := ctx.ShouldBind(&repwdCheckVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	// 2. 初审用户信息
+	if ok := utils.VerifyMobile(repwdCheckVo.Mobile); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.InvalidMobile))
+		return
+	}
+	if ok := models.UserInfoUtil.CheckUsername(repwdCheckVo.Username); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFormat))
+		return
+	}
+	//	3. 核实用户手机号和用户名是否属于同一人
+	queryUser, err1 := models.UserInfoDao.GetUserByPhone(repwdCheckVo.Mobile)
+	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("根据手机号查询用户信息失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryUser.Username == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFound))
+		return
+	}
+	if queryUser.Username != repwdCheckVo.Username {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotMatchMobile))
+		return
+	}
+	//	4. 校验验证码
+	if repwdCheckVo.Captcha == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.CaptchaError))
+		return
+	}
+	keyPrefix := constants.MatchModeCode(constants.ForgetMode)
+	queryCaptcha, err2 := h.cache.Get(keyPrefix + repwdCheckVo.Mobile)
+	if err2 != nil && err2 != redis.Nil {
+		constants.RedisErr("查询验证码失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryCaptcha == "" || err2 == redis.Nil {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.CaptchaNotSend))
+		return
+	}
+	if queryCaptcha != repwdCheckVo.Captcha {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.CaptchaError))
+		return
+	}
+	//	5. 验证码正确，发送一个 token作为 修改密码的凭据 ,存入redis,因为可以用完就删除
+	tidyToken := utils.MakeCodeWithNumber(10, int(queryUser.Id))
+	err3 := h.cache.Put(constants.RepwdCheckPrefix+repwdCheckVo.Mobile, tidyToken, constants.RepwdCheckExpire)
+	if err3 != nil {
+		constants.RedisErr("保存验证码到redis失败:"+repwdCheckVo.Mobile+":"+tidyToken, err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success(tidyToken))
 }
 
 // Repassword 修改密码
-// api : /users/repasswd?auth2=xx.xx.xx  [post]
-// post_args : {"password":"xxx","repassword":"xxx"} json TOKEN
+// api : /users/repasswd?auth2=xxx  [post]
+// post_args : {"mobile":"xxx","password":"xxx","repassword":"xxx"} json TIDY_TOKEN
 func (h *UserHandler) Repassword(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing ... ")
+	resp := common.NewResp()
+	//	1. 绑定参数
+	var repwdVo = vo.UserVoHelper.NewUserVo().RepwdVo
+	if err := ctx.ShouldBind(&repwdVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	1.5 简单校验
+	if repwdVo.Password != repwdVo.Repassword {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PwdNotSame))
+		return
+	}
+	//	2. 校验路径参数的身份 token
+	tidyToken := ctx.Query("auth2")
+	if tidyToken == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotAuth2Token))
+		return
+	}
+	//	3. 验证手机号真实性
+	queryUser, err2 := models.UserInfoDao.GetUserByPhone(repwdVo.Mobile)
+	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("根据手机号获取用户信息失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryUser.Phone == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PhoneNotFound))
+		return
+	}
+	//	4. 查 redis 的 tidyToken
+	key := constants.RepwdCheckPrefix + repwdVo.Mobile
+	queryToken, err1 := h.cache.Get(key)
+	if err1 != nil && err1 != redis.Nil {
+		constants.RedisErr("从redis获取修改密码的token失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if err1 == redis.Nil || queryToken != tidyToken {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.Auth2TokenErr))
+		return
+	}
+	//	5. token正确， 修改其密码，以及UUID
+	columnMap := make(map[string]interface{})
+	columnMap["password"] = utils.Md5Sum(repwdVo.Password)
+	columnMap["uuid"] = uuid.New().String()
+	err3 := models.UserInfoDao.UpdateUserByMap(queryUser.Id, columnMap)
+	if err3 != nil && !errors.Is(err3, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("更新用户密码失败", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	6. 立即删除 redis的key
+	c, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	options.C.RDB.Del(c, key)
+	ctx.JSON(http.StatusOK, resp.Success("密码已更新，请重新登录"))
 }
 
 // UpdateUserInfo 修改 用户名、性别、个性签名 - 不想修改的字段传空字符串即可
 // api : /users/update/info [post]
 // post_args : {"username":"","sex":"","sign":""} json LOGIN
 func (h *UserHandler) UpdateUserInfo(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing ... ")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var updateInfo = vo.UserVoHelper.NewUserVo().UpdateUserInfoVo
+	if err := ctx.ShouldBind(&updateInfo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 参数校验
+	if updateInfo.Username != "" && !models.UserInfoUtil.CheckUsername(updateInfo.Username) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFormat))
+		return
+	}
+	if updateInfo.Sign != "" && !models.UserInfoUtil.CheckSign(updateInfo.Sign) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.SignNotFormat))
+		return
+	}
+	if updateInfo.Sex != "" && updateInfo.Sex != models.Man && updateInfo.Sex != models.Woman {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.SexNotFormat))
+		return
+	}
+	//	3. 进行修改
+	err1 := models.UserInfoDao.UpdateUser(userClaim.Id, updateInfo)
+	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
+		constants.MysqlErr(fmt.Sprintf("修改用户信息失败 : %v", updateInfo), err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success("信息修改成功"))
 }
 
 // GetUserInfo 获取用户基本信息
 // api : /users/get/info  [get] LOGIN
 func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing ... ")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取用户信息
+	queryUser, err1 := models.UserInfoDao.GetUserById(userClaim.Id)
+	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("根据用户id获取用户信息异常", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success(models.UserInfoUtil.TransToDtos(queryUser).First()))
 }
 
 // UploadUserCurPos 上传用户 当前经纬度坐标 -- 可以选择在用户登录,或进入程序时调用
