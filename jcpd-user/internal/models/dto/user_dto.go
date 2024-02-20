@@ -14,3 +14,12 @@ func (dtos UserInfoDtos) First() UserInfoDto {
 	}
 	return dtos[0]
 }
+
+type NearbyUsers []NearbyUserDto
+
+type NearbyUserDto struct {
+	Username string `json:"username"`
+	Sex      string `json:"sex"`
+	Sign     string `json:"sign"`
+	Distance string `json:"distance"`
+}

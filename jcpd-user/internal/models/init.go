@@ -11,6 +11,7 @@ func InitUser() {
 	commonJWT.NewDB(options.C.DB)
 
 	NewUserInfoDao()
+	NewPointInfoDao()
 
 	CreateTables()
 }
@@ -19,6 +20,7 @@ func CreateTables() {
 	log.Println("------------------- create tables --------------------")
 
 	UserInfoDao.CreateTable()
+	PointInfoDao.CreateTable()
 
 	log.Println("------------------- create success -------------------")
 }

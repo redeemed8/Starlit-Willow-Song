@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
 	"gorm.io/gorm"
@@ -16,6 +17,7 @@ import (
 	"math/rand"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -43,19 +45,14 @@ type UserInfo struct {
 	UUID      string    `gorm:"size:37;not null"`         //	用户身份标识 - 存储在jwt中，会随着密码的修改而修改
 	Sex       string    `gorm:"size:2"`                   //	性别   0女  1男  2未知
 	Sign      string    `gorm:"type:longtext"`            //	个性签名
-	Location  Point     `gorm:"type:point"`               //	地理位置信息 - 默认为null
 	CreatedAt time.Time `gorm:"autoCreateTime"`           //	创建时间
 }
 
-// Point 定义地理位置结构体
-type Point struct {
-	Lat float64 `json:"lat"`
-	Lng float64 `json:"lng"`
-}
+const UserInfoTN = "5613_userinfo"
 
 // TableName 表名
 func (table *UserInfo) TableName() string {
-	return "5613_userinfo"
+	return UserInfoTN
 }
 
 // CreateTable 创建表
@@ -73,6 +70,21 @@ func (info *UserInfoDao_) GetUserById(id uint32) (UserInfo, error) {
 	userinfo := UserInfo{}
 	result := info.DB.Where("id = ?", id).First(&userinfo)
 	return userinfo, result.Error
+}
+
+// GetUsersByIds 根据 id获取部分用户的部分信息
+func (info *UserInfoDao_) GetUsersByIds(ids []uint32) ([]UserInfo, error) {
+	idsStr := UserInfoUtil.JoinUint32(ids)
+	//	select username,sex,sign from UserInfoTN where id in (...)
+	sqlSlice := []string{
+		"select id,username,sex,sign from",
+		UserInfoTN,
+		fmt.Sprintf("where id in (%s)", idsStr),
+	}
+	sql_ := strings.Join(sqlSlice, " ")
+	var infos []UserInfo
+	err := info.DB.Raw(sql_).Scan(&infos).Error
+	return infos, err
 }
 
 // GetUserByUsername 根据 用户名 获取用户信息
@@ -175,4 +187,16 @@ func (util *UserInfoUtil_) TransToDtos(userinfos ...UserInfo) dto.UserInfoDtos {
 		dtos = append(dtos, util.transToDto(info))
 	}
 	return dtos
+}
+
+func (util *UserInfoUtil_) JoinUint32(ids []uint32) string {
+	var idsStr string
+	for i, id := range ids {
+		idsStr = fmt.Sprintf("%s%d", idsStr, id)
+		if i+1 == len(ids) {
+			break
+		}
+		idsStr += ","
+	}
+	return idsStr
 }

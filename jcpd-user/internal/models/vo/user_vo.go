@@ -13,6 +13,7 @@ type UserVo struct {
 	RepwdVo          RepwdVo
 	UpdateUserInfoVo UpdateUserInfoVo
 	PositionVo       PositionVo
+	PosXYR           PosXYR
 }
 
 func (*UserVoHelper_) NewUserVo() *UserVo {
@@ -59,6 +60,13 @@ type UpdateUserInfoVo struct {
 }
 
 type PositionVo struct {
-	Longitude float64 `json:"longitude"` //	经度
-	Latitude  float64 `json:"latitude"`  //	纬度
+	X float64 `json:"x"` //	经度
+	Y float64 `json:"y"` //	纬度
+}
+
+type PosXYR struct {
+	X      float64 `json:"x"`      //	经度
+	Y      float64 `json:"y"`      //	纬度
+	R      int     `json:"r"`      //	半径
+	Offset int     `json:"offset"` //	偏移量
 }

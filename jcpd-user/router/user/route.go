@@ -37,6 +37,6 @@ func (*RouterUser) Router(r *gin.Engine) {
 		userserviceGroup.GET("/get/info", handler.GetUserInfo)
 
 		userserviceGroup.POST("/upload/cur/pos", handler.UploadUserCurPos)
-		userserviceGroup.GET("/get/friend/nearby", handler.GetUserNearby)
+		userserviceGroup.POST("/get/friend/nearby", handler.GetUserNearby)
 	}
 }

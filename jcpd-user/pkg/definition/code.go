@@ -29,4 +29,9 @@ var (
 
 	SignNotFormat = common.NormalErr{Code: 3051, Msg: "签名不符合规范"}
 	SexNotFormat  = common.NormalErr{Code: 3052, Msg: "性别有误，未知性别"}
+
+	PosNotFormat    = common.NormalErr{Code: 3061, Msg: "位置信息不合法"}
+	RadiusTooSmall  = common.NormalErr{Code: 3062, Msg: "查询半径应该大于0km"}
+	XYNotFormat     = common.NormalErr{Code: 3063, Msg: "经纬度信息不符合规范"}
+	NotFountAnyUser = common.NormalErr{Code: 3064, Msg: "附近没有发现任何人哦"}
 )

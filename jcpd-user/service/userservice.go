@@ -12,6 +12,7 @@ import (
 	commonJWT "jcpd.cn/common/utils/jwt"
 	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/models"
+	"jcpd.cn/user/internal/models/dto"
 	"jcpd.cn/user/internal/models/vo"
 	"jcpd.cn/user/internal/options"
 	"jcpd.cn/user/pkg/definition"
@@ -133,8 +134,8 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 		Sex:      models.UserInfoUtil.GetDefaultSex(),
 	}
 	err2 := models.UserInfoDao.CreateUser(userinfo)
-	if err2 != nil {
-		constants.MysqlErr("创建用户失败", err1)
+	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("创建用户失败", err2)
 		//	TODO 降级处理，放入消息队列进行通知各个服务，但这里不做，应在grpc里
 		//	...
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
@@ -500,13 +501,111 @@ func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
 
 // UploadUserCurPos 上传用户 当前经纬度坐标 -- 可以选择在用户登录,或进入程序时调用
 // api : /users/upload/cur/pos  [post]
-// post_args : {"longitude":"xxx","latitude":"xxx"} json LOGIN
+// post_args : {"x":"xxx","y":"xxx"} json LOGIN
 func (h *UserHandler) UploadUserCurPos(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing...")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var posInfo = vo.UserVoHelper.NewUserVo().PositionVo
+	if err := ctx.ShouldBind(&posInfo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 参数校验
+	if ok := models.PointInfoUtil.CheckPointXY(posInfo.X, posInfo.Y); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PosNotFormat))
+		return
+	}
+	//	4. 检查其以前是否上传过
+	exists, err1 := models.PointInfoDao.CheckPointIsExists(userClaim.Id)
+	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("根据id查询位置信息失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	5. 存在更新，不存在创建
+	var err2 error
+	pointInfo := models.PointInfo{Id: userClaim.Id, Point: models.PointInfoUtil.MakePoint(posInfo.X, posInfo.Y)}
+	if exists {
+		err2 = models.PointInfoDao.UpdatePosById(pointInfo)
+	} else {
+		err2 = models.PointInfoDao.CreatePointInfo(pointInfo)
+	}
+	if err2 != nil {
+		constants.MysqlErr(fmt.Sprintf("创建或更新 用户位置信息失败 , %v", pointInfo), err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success("用户位置信息已上传"))
 }
 
-// GetUserNearby 获取附近的用户 - 可以指定范围半径 (单位：km)
-// api : /users/get/friend/nearby?r=xxx  [get] LOGIN
+const NearbyUserMAX = 50
+
+// GetUserNearby 获取附近的用户 - 可以指定范围半径 (单位：km)  有最大限制 - DistanceMAX 500km - 每次最多50人
+// api : /users/get/friend/nearby  [post]
+// api_args : {"x":15,"y":30.5,"r":50,pagesize:1} json LOGIN
 func (h *UserHandler) GetUserNearby(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing...")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var posXYR = vo.UserVoHelper.NewUserVo().PosXYR
+	if err := ctx.ShouldBind(&posXYR); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 参数校验
+	if posXYR.R <= 0 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.RadiusTooSmall))
+		return
+	}
+	if ok := models.PointInfoUtil.CheckPointXY(posXYR.X, posXYR.Y); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.XYNotFormat))
+		return
+	}
+	if posXYR.Offset < 0 {
+		posXYR.Offset = 0
+	}
+	//	4. 进行范围查询
+	origin := models.PointInfoUtil.MakePoint(posXYR.X, posXYR.Y)
+	iddisMap, err1 := models.PointInfoDao.GetUserByDistance(origin, posXYR.R*models.KM, NearbyUserMAX, posXYR.Offset)
+	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("位置范围查询失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	for k := range iddisMap {
+		if k == userClaim.Id {
+			delete(iddisMap, k)
+		}
+	}
+	if len(iddisMap) == 0 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotFountAnyUser))
+		return
+	}
+	//	5. 根据 id进行用户信息的查找
+	infos, err2 := models.UserInfoDao.GetUsersByIds(iddisMap.Keys())
+	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("根据id查询一些用户时出错", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	6. 进行最后的封装
+	var dtos dto.NearbyUsers
+	for _, info := range infos {
+		dtos = append(dtos, dto.NearbyUserDto{
+			Username: info.Username,
+			Sex:      info.Sex,
+			Sign:     info.Sign,
+			Distance: iddisMap[info.Id],
+		})
+	}
+	ctx.JSON(http.StatusOK, resp.Success(dtos))
 }

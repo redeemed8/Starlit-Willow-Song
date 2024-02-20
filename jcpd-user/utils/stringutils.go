@@ -23,18 +23,6 @@ func MakeCodeWithNumber(length int, symbol int) (ret string) {
 	return ret
 }
 
-func StringContains(strings []string, target string) bool {
-	if len(strings) < 1 {
-		return false
-	}
-	for _, str := range strings {
-		if str == target {
-			return true
-		}
-	}
-	return false
-}
-
 func Md5Sum(text string) string {
 	hash := md5.Sum([]byte(text))
 	return hex.EncodeToString(hash[:])
