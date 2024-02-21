@@ -38,14 +38,16 @@ const (
 )
 
 type UserInfo struct {
-	Id        uint32    `gorm:"primaryKey;autoIncrement"` //	主键 id
-	Phone     string    `gorm:"size:12;unique"`           //	手机号 - 唯一
-	Username  string    `gorm:"size:31;unique"`           //	用户名 - 唯一
-	Password  string    `gorm:"size:33"`                  //	密码 - md5存储
-	UUID      string    `gorm:"size:37;not null"`         //	用户身份标识 - 存储在jwt中，会随着密码的修改而修改
-	Sex       string    `gorm:"size:2"`                   //	性别   0女  1男  2未知
-	Sign      string    `gorm:"type:longtext"`            //	个性签名
-	CreatedAt time.Time `gorm:"autoCreateTime"`           //	创建时间
+	Id         uint32    `gorm:"primaryKey;autoIncrement"` //	主键 id
+	Phone      string    `gorm:"size:12;unique"`           //	手机号 - 唯一
+	Username   string    `gorm:"size:31;unique"`           //	用户名 - 唯一
+	Password   string    `gorm:"size:33"`                  //	密码 - md5存储
+	UUID       string    `gorm:"size:37;not null"`         //	用户身份标识 - 存储在jwt中，会随着密码的修改而修改
+	Sex        string    `gorm:"size:2"`                   //	性别   0女  1男  2未知
+	Sign       string    `gorm:"type:longtext"`            //	个性签名
+	FriendList string    `gorm:"type:longtext"`            //	好友列表
+	GroupList  string    `gorm:"type:longtext"`            //	群聊列表
+	CreatedAt  time.Time `gorm:"autoCreateTime"`           //	创建时间
 }
 
 const UserInfoTN = "5613_userinfo"
@@ -199,4 +201,23 @@ func (util *UserInfoUtil_) JoinUint32(ids []uint32) string {
 		idsStr += ","
 	}
 	return idsStr
+}
+
+func (util *UserInfoUtil_) IdIsExists(ids string, id uint32) bool {
+	idStr := fmt.Sprintf("%d", id)
+	idArr := strings.Split(ids, ",")
+	for _, tId := range idArr {
+		if tId == idStr {
+			return true
+		}
+	}
+	return false
+}
+
+func (util *UserInfoUtil_) AddToList(list *string, target string) {
+	if *list == "" {
+		*list += target
+	} else if target != "" {
+		*list += "," + target
+	}
 }

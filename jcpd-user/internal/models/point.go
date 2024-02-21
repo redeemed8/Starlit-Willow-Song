@@ -17,6 +17,7 @@ func NewPointInfoDao() {
 	PointInfoDao = PointInfoDao_{DB: options.C.DB}
 }
 
+// PointInfo 使用空间索引进行查询优化
 type PointInfo struct {
 	Id    uint32 `gorm:"primaryKey"`
 	Point Point  `gorm:"type:geometry;not null;index:idx_location"`

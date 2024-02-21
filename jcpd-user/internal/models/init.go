@@ -10,17 +10,23 @@ func InitUser() {
 	//	初始化 jwt的数据库连接
 	commonJWT.NewDB(options.C.DB)
 
-	NewUserInfoDao()
-	NewPointInfoDao()
+	newDao()
 
-	CreateTables()
+	createTables()
 }
 
-func CreateTables() {
+func newDao() {
+	NewUserInfoDao()
+	NewPointInfoDao()
+	NewJoinApplyDao()
+}
+
+func createTables() {
 	log.Println("------------------- create tables --------------------")
 
 	UserInfoDao.CreateTable()
 	PointInfoDao.CreateTable()
+	JoinApplyDao.CreateTable()
 
 	log.Println("------------------- create success -------------------")
 }

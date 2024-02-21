@@ -1,4 +1,4 @@
-# 创建 pointinfo 表
+# 创建 pointinfo 表, 使用空间索引优化
 create table 5918_pointinfo
 (
     id    int unsigned PRIMARY KEY,

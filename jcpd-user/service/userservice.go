@@ -247,6 +247,10 @@ func (h *UserHandler) LoginPasswd(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFound))
 		return
 	}
+	if queryUser.Password == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PwdNotSet))
+		return
+	}
 	//	3. 校验密码 md5
 	if queryUser.Password != utils.Md5Sum(loginInfo.Password) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.PwdError))
@@ -342,6 +346,10 @@ func (h *UserHandler) GetRepasswdToken(ctx *gin.Context) {
 	}
 	if queryUser.Username == "" {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFound))
+		return
+	}
+	if queryUser.Phone == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotBindMobile))
 		return
 	}
 	if queryUser.Username != repwdCheckVo.Username {
