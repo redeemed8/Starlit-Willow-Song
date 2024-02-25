@@ -41,4 +41,9 @@ var (
 	IntroduceNotFormat = common.NormalErr{Code: 3071, Msg: "介绍信息不符合规范"}
 	NotAddFriendAgain  = common.NormalErr{Code: 3072, Msg: "你们已经是好友啦"}
 	NotSendApplyAgain  = common.NormalErr{Code: 3073, Msg: "你以前已经发送过请求咯~"}
+	InvalidApplyStatus = common.NormalErr{Code: 3074, Msg: "无效的审核状态"}
+	InvalidApplyType   = common.NormalErr{Code: 3075, Msg: "无效的申请类型"}
+	StatusNotUpdate    = common.NormalErr{Code: 3076, Msg: "该审核状态无法修改"}
+	StatusNotToUpdate  = common.NormalErr{Code: 3077, Msg: "无法修改成此审核状态"}
+	ApplyNotFound      = common.NormalErr{Code: 3078, Msg: "未找到相关的申请信息"}
 )

@@ -1,8 +1,10 @@
 package models
 
 import (
+	"errors"
 	"gorm.io/gorm"
 	"jcpd.cn/user/internal/constants"
+	"jcpd.cn/user/internal/models/dto"
 	"jcpd.cn/user/internal/options"
 	"regexp"
 	"time"
@@ -82,14 +84,55 @@ func (join *JoinApplyDao_) GetApplyByMap(columnMap map[string]interface{}) (Join
 }
 
 // GetAppliesByMap 根据 指定的信息获取 多条申请信息
-func (join *JoinApplyDao_) GetAppliesByMap(columnMap map[string]interface{}) ([]JoinApply, error) {
-	var applies []JoinApply
+func (join *JoinApplyDao_) GetAppliesByMap(columnMap map[string]interface{}) (JoinApplies, error) {
+	var applies JoinApplies
 	result := join.DB.Model(&JoinApply{}).Where(columnMap).Find(&applies)
 	return applies, result.Error
 }
 
 func (join *JoinApplyDao_) UpdateApplyByMap(id uint32, columnMap map[string]interface{}) error {
 	return join.DB.Model(&JoinApply{}).Where("id = ?", id).Updates(columnMap).Error
+}
+
+type JoinApplies []JoinApply
+
+func (applies *JoinApplies) senderIdsMap() SenderidApplyMap {
+	senderIdsMap_ := make(SenderidApplyMap)
+	for _, apply := range *applies {
+		senderIdsMap_[apply.SenderId] = apply
+	}
+	return senderIdsMap_
+}
+
+type SenderidApplyMap map[uint32]JoinApply
+
+func (map_ *SenderidApplyMap) Keys() []uint32 {
+	var keys []uint32
+	for k := range *map_ {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (applies *JoinApplies) TransToApplyInfoDtos(status ApplyStatus) (dto.ApplyInfoDtos, error) {
+	//	转换成 sendId - apply 的map
+	senderidApplyMap := applies.senderIdsMap()
+	//	根据 map的key获取到所有的相关用户
+	users, err := UserInfoDao.GetUsersByIds(senderidApplyMap.Keys())
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.ApplyInfoDtos{}, err
+	}
+	//	制作 ApplyInfoDtos
+	var dtos dto.ApplyInfoDtos
+	for _, user := range users {
+		dtos = append(dtos, dto.ApplyInfoDto{
+			Username:     user.Username,
+			Sex:          user.Sex,
+			Status:       status.ToString(),
+			Introduction: senderidApplyMap[user.Id].Introduction,
+		})
+	}
+	return dtos, nil
 }
 
 // ----------------------------------
@@ -117,6 +160,14 @@ func (util *JoinApplyUtil_) GetDftIntroduce() string {
 	return "Hi~ 我想成为你的朋友~,可以吗？"
 }
 
+func (util *JoinApplyUtil_) GetDftWebStatus() ApplyStatus {
+	return NotKnown
+}
+
+func (util *JoinApplyUtil_) GetPendStatus() ApplyStatus {
+	return Pending
+}
+
 func (util *JoinApplyUtil_) CheckIntroduce(introduce *string) bool {
 	if *introduce == "" {
 		*introduce = util.GetDftIntroduce()
@@ -126,4 +177,14 @@ func (util *JoinApplyUtil_) CheckIntroduce(introduce *string) bool {
 		return false
 	}
 	return regexp.MustCompile(constants.IntroduceRegex).MatchString(*introduce)
+}
+
+func (util *JoinApplyUtil_) CheckType(type_ string) bool {
+	if type_ == Friend {
+		return true
+	}
+	if type_ == Group {
+		return true
+	}
+	return false
 }

@@ -23,5 +23,11 @@ func (*RouterApply) Router(r *gin.Engine) {
 	applyserviceGroup := r.Group("/users/apply")
 	{
 		applyserviceGroup.POST("/tobe/friend", handler.ApplyToBeFriend)
+		applyserviceGroup.GET("/get/all", handler.GetAllAppliesByStatus)
+		applyserviceGroup.POST("/update/status", handler.UpdateApplyStatus)
 	}
+
+	go handler.CleanUsedApply()
+	log.Println("定时任务:清理已审核的申请信息  --  状态：已开启")
+
 }
