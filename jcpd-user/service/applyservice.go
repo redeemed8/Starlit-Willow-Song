@@ -232,8 +232,3 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 	retMap := map[string]string{"cur_status_ret": toStatus.ToString(), "update_ret": "申请信息已修改"}
 	ctx.JSON(http.StatusOK, retMap)
 }
-
-// CleanUsedApply 设置一个定时任务在协程中开启，定时清理一些已经通过或拒绝了的申请
-func (h *ApplyHandler) CleanUsedApply() {
-
-}

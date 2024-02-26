@@ -90,8 +90,16 @@ func (join *JoinApplyDao_) GetAppliesByMap(columnMap map[string]interface{}) (Jo
 	return applies, result.Error
 }
 
+// UpdateApplyByMap 根据 map更新记录
 func (join *JoinApplyDao_) UpdateApplyByMap(id uint32, columnMap map[string]interface{}) error {
 	return join.DB.Model(&JoinApply{}).Where("id = ?", id).Updates(columnMap).Error
+}
+
+const ExpireDay = -7
+
+func (join *JoinApplyDao_) DeleteApplyByNotStatus(status ApplyStatus) error {
+	var expiration = time.Now().AddDate(0, 0, ExpireDay)
+	return join.DB.Model(&JoinApply{}).Where("status != ?", status).Where("updated_at < ?", expiration).Delete(&JoinApply{}).Error
 }
 
 type JoinApplies []JoinApply
