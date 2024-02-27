@@ -176,6 +176,10 @@ func (util *JoinApplyUtil_) GetPendStatus() ApplyStatus {
 	return Pending
 }
 
+func (util *JoinApplyUtil_) GetAcceptedStatus() ApplyStatus {
+	return Accepted
+}
+
 func (util *JoinApplyUtil_) CheckIntroduce(introduce *string) bool {
 	if *introduce == "" {
 		*introduce = util.GetDftIntroduce()

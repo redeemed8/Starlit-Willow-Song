@@ -12,6 +12,7 @@ import (
 	"jcpd.cn/user/internal/models/vo"
 	"jcpd.cn/user/pkg/definition"
 	"net/http"
+	"strconv"
 )
 
 // ApplyHandler apply路由的处理器 -- 用于管理各种接口的实现
@@ -157,7 +158,7 @@ func (h *ApplyHandler) GetAllAppliesByStatus(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, resp.Success(dtos))
 }
 
-// UpdateApplyStatus 修改申请状态 - 好友或群邀请
+// UpdateApplyStatus 修改申请状态 - 好友邀请
 // api : /users/apply/update/status  [post]
 // post_args : {"username":"xxx","apply_type":"xxx","cur_status":"xxx","to_status":"xxx"}  json  LOGIN
 func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
@@ -208,7 +209,7 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 		return
 	}
 	//	5. 获取对应的申请信息
-	columnMap := map[string]interface{}{"sender_id": queryUser.Id, "receiver_id": userClaim.Id, "apply_type": updateVo.ApplyType}
+	columnMap := map[string]interface{}{"sender_id": queryUser.Id, "receiver_id": userClaim.Id, "apply_type": updateVo.ApplyType, "status": curStatus}
 	apply, err2 := models.JoinApplyDao.GetApplyByMap(columnMap)
 	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
 		constants.MysqlErr("修改申请状态时获取申请信息失败", err2)
@@ -228,6 +229,21 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 		constants.MysqlErr("修改审核状态失败", err3)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
+	}
+	//	7. 添加到其好友列表中
+	if toStatus == models.JoinApplyUtil.GetAcceptedStatus() {
+		//	获取当前用户信息
+		curUser, _ := models.UserInfoDao.GetUserById(userClaim.Id)
+		if updateVo.ApplyType == models.Friend {
+			//	添加申请人到当前人的好友列表
+			models.UserInfoUtil.AddToList(&curUser.FriendList, strconv.Itoa(int(queryUser.Id)))
+			columnMap_ := map[string]interface{}{"friend_list": curUser.FriendList}
+			_ = models.UserInfoDao.UpdateUserByMap(curUser.Id, columnMap_)
+			//	添加当前人到申请人的好友列表
+			models.UserInfoUtil.AddToList(&queryUser.FriendList, strconv.Itoa(int(curUser.Id)))
+			columnMap_["friend_list"] = queryUser.FriendList
+			_ = models.UserInfoDao.UpdateUserByMap(queryUser.Id, columnMap_)
+		}
 	}
 	retMap := map[string]string{"cur_status_ret": toStatus.ToString(), "update_ret": "申请信息已修改"}
 	ctx.JSON(http.StatusOK, retMap)

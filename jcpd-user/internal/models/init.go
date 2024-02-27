@@ -19,6 +19,7 @@ func newDao() {
 	NewUserInfoDao()
 	NewPointInfoDao()
 	NewJoinApplyDao()
+	NewGroupInfoDao()
 }
 
 func createTables() {
@@ -27,6 +28,7 @@ func createTables() {
 	UserInfoDao.CreateTable()
 	PointInfoDao.CreateTable()
 	JoinApplyDao.CreateTable()
+	GroupInfoDao.CreateTable()
 
 	log.Println("------------------- create success -------------------")
 }
