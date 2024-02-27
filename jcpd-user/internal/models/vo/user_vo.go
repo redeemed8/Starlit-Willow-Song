@@ -14,6 +14,7 @@ type UserVo struct {
 	UpdateUserInfoVo UpdateUserInfoVo
 	PositionVo       PositionVo
 	PosXYR           PosXYR
+	CreateGroupVo    CreateGroupVo
 }
 
 func (*UserVoHelper_) NewUserVo() *UserVo {
@@ -69,4 +70,10 @@ type PosXYR struct {
 	Y      float64 `json:"y"`      //	纬度
 	R      int     `json:"r"`      //	半径
 	Offset int     `json:"offset"` //	偏移量
+}
+
+type CreateGroupVo struct {
+	GroupName    string `json:"group_name"`     //	群名
+	GroupPost    string `json:"group_post"`     //	群公告
+	MaxPersonNum int    `json:"max_person_num"` //	最大人数
 }

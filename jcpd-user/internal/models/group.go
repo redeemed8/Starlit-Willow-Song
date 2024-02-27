@@ -2,7 +2,9 @@ package models
 
 import (
 	"gorm.io/gorm"
+	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/options"
+	"regexp"
 	"time"
 )
 
@@ -41,8 +43,43 @@ func (info *GroupInfoDao_) CreateTable() {
 	_ = info.DB.AutoMigrate(&GroupInfo{})
 }
 
+// CreateGroup 创建一个群信息
+func (info *GroupInfoDao_) CreateGroup(groupInfo GroupInfo) error {
+	return info.DB.Create(&groupInfo).Error
+}
+
 // ----------------------------------
 
+// GetDefaultPost 获取默认的群公告
 func (util *GroupInfoUtil_) GetDefaultPost() string {
 	return "该群暂无群公告~"
+}
+
+// CheckGroupName 检查群名称
+func (util *GroupInfoUtil_) CheckGroupName(name *string) bool {
+	if *name == "" || len(*name) > 45 {
+		return false
+	}
+	return regexp.MustCompile(constants.GroupNameRegex).MatchString(*name)
+}
+
+// CheckGroupPost 检查群公告
+func (util *GroupInfoUtil_) CheckGroupPost(post *string) bool {
+	if *post == "" {
+		*post = util.GetDefaultPost()
+		return true
+	}
+	if len(*post) > 1000 {
+		return false
+	}
+	return regexp.MustCompile(constants.GroupPostRegex).MatchString(*post)
+}
+
+// CheckGroupMaxNum 检查群人数
+func (util *GroupInfoUtil_) CheckGroupMaxNum(maxNum *int) bool {
+	if *maxNum > 500 {
+		*maxNum = 500
+		return true
+	}
+	return *maxNum > 0
 }

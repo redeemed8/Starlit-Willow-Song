@@ -46,4 +46,8 @@ var (
 	StatusNotUpdate    = common.NormalErr{Code: 3076, Msg: "该审核状态无法修改"}
 	StatusNotToUpdate  = common.NormalErr{Code: 3077, Msg: "无法修改成此审核状态"}
 	ApplyNotFound      = common.NormalErr{Code: 3078, Msg: "未找到相关的申请信息"}
+
+	GroupNameNotFormat = common.NormalErr{Code: 3081, Msg: "群名称不符合规范"}
+	GroupPostNotFormat = common.NormalErr{Code: 3082, Msg: "群公告不符合规范"}
+	GroupMaxNumTidy    = common.NormalErr{Code: 3083, Msg: "群人数应大于1人"}
 )

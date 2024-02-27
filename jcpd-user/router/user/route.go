@@ -38,5 +38,7 @@ func (*RouterUser) Router(r *gin.Engine) {
 
 		userserviceGroup.POST("/upload/cur/pos", handler.UploadUserCurPos)
 		userserviceGroup.POST("/get/friend/nearby", handler.GetUserNearby)
+
+		userserviceGroup.POST("/create/group", handler.CreateGroup)
 	}
 }

@@ -617,3 +617,47 @@ func (h *UserHandler) GetUserNearby(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, resp.Success(dtos))
 }
+
+// CreateGroup 创建群聊
+// api : /users/create/group [post]
+// post_args : {"group_name":"xxx","group_post":"xxx","max_person_num":xxx}  json LOGIN
+func (h *UserHandler) CreateGroup(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var createVo = vo.UserVoHelper.NewUserVo().CreateGroupVo
+	if err := ctx.ShouldBind(&createVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 参数校验
+	if ok := models.GroupInfoUtil.CheckGroupName(&(createVo.GroupName)); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNameNotFormat))
+		return
+	}
+	if ok := models.GroupInfoUtil.CheckGroupPost(&(createVo.GroupPost)); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupPostNotFormat))
+		return
+	}
+	if ok := models.GroupInfoUtil.CheckGroupMaxNum(&(createVo.MaxPersonNum)); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupMaxNumTidy))
+		return
+	}
+	//	4. 创建群信息
+	groupInfo := models.GroupInfo{
+		GroupName: createVo.GroupName, GroupPost: createVo.GroupPost,
+		LordId: userClaim.Id, AdminIds: "", MemberIds: "",
+		CurPersonNum: 0, MaxPersonNum: createVo.MaxPersonNum,
+	}
+	err9 := models.GroupInfoDao.CreateGroup(groupInfo)
+	if err9 != nil && !errors.Is(err9, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("添加群信息失败", err9)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success("创建成功"))
+}
