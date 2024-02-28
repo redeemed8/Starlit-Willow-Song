@@ -20,7 +20,6 @@ type ApplyFriendVo struct {
 
 type UpdateApplyStatusVo struct {
 	Username  string `json:"username"`
-	ApplyType string `json:"apply_type"`
 	CurStatus string `json:"cur_status"`
 	ToStatus  string `json:"to_status"`
 }

@@ -35,10 +35,20 @@ func (*RouterUser) Router(r *gin.Engine) {
 
 		userserviceGroup.POST("/update/info", handler.UpdateUserInfo)
 		userserviceGroup.GET("/get/info", handler.GetUserInfo)
+		userserviceGroup.GET("/search", handler.GetUserByName)
 
 		userserviceGroup.POST("/upload/cur/pos", handler.UploadUserCurPos)
 		userserviceGroup.POST("/get/friend/nearby", handler.GetUserNearby)
+		userserviceGroup.GET("/friend/getlist", handler.GetOwnFriendList)
+		userserviceGroup.POST("/delete/friend", handler.DeleteFriendById)
 
-		userserviceGroup.POST("/create/group", handler.CreateGroup)
+		userserviceGroup.POST("/group/create", handler.CreateGroup)
+		userserviceGroup.GET("/group/getinfo/byid", handler.GetGroupInfoById)
+		userserviceGroup.GET("/group/search", handler.GetGroupByName)
+		userserviceGroup.POST("/group/update/info", handler.UpdateGroupInfo)
+		userserviceGroup.GET("/group/getlist", handler.GetJoinedGroup)
+		userserviceGroup.POST("/group/exit", handler.ExitGroup)
+		userserviceGroup.POST("/group/set/admin", handler.ChooseUserToBeAdmin)
+
 	}
 }

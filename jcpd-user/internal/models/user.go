@@ -17,6 +17,7 @@ import (
 	"math/rand"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -44,9 +45,9 @@ type UserInfo struct {
 	Password   string    `gorm:"size:33"`                  //	密码 - md5存储
 	UUID       string    `gorm:"size:37;not null"`         //	用户身份标识 - 存储在jwt中，会随着密码的修改而修改
 	Sex        string    `gorm:"size:2"`                   //	性别   0女  1男  2未知
-	Sign       string    `gorm:"type:longtext"`            //	个性签名
-	FriendList string    `gorm:"type:longtext"`            //	好友列表
-	GroupList  string    `gorm:"type:longtext"`            //	群聊列表
+	Sign       string    `gorm:"type:text"`                //	个性签名
+	FriendList string    `gorm:"type:text"`                //	好友列表
+	GroupList  string    `gorm:"type:text"`                //	群聊列表
 	CreatedAt  time.Time `gorm:"autoCreateTime"`           //	创建时间
 }
 
@@ -76,7 +77,7 @@ func (info *UserInfoDao_) GetUserById(id uint32) (UserInfo, error) {
 
 // GetUsersByIds 根据 id获取部分用户的部分信息
 func (info *UserInfoDao_) GetUsersByIds(ids []uint32) ([]UserInfo, error) {
-	idsStr := UserInfoUtil.JoinUint32(ids)
+	idsStr := utils.JoinUint32(ids)
 	//	select username,sex,sign from UserInfoTN where id in (...)
 	sqlSlice := []string{
 		"select id,username,sex,sign from",
@@ -143,6 +144,7 @@ func (util *UserInfoUtil_) GetDefaultSex() string {
 	return DefaultSex
 }
 
+// DefaultNamePrefix	默认用户名前缀
 const DefaultNamePrefix = "LXY"
 
 // GetDefaultName 获取默认用户名
@@ -174,6 +176,7 @@ func (util *UserInfoUtil_) TransSex(sexCode string) string {
 	return "未知"
 }
 
+// transToDto 转换为 UserInfoDto
 func (util *UserInfoUtil_) transToDto(userinfo UserInfo) dto.UserInfoDto {
 	var dto_ dto.UserInfoDto
 	err := copier.Copy(&dto_, &userinfo)
@@ -183,6 +186,7 @@ func (util *UserInfoUtil_) transToDto(userinfo UserInfo) dto.UserInfoDto {
 	return dto_
 }
 
+// TransToDtos 批量转换为 UserInfoDto
 func (util *UserInfoUtil_) TransToDtos(userinfos ...UserInfo) dto.UserInfoDtos {
 	var dtos dto.UserInfoDtos
 	for _, info := range userinfos {
@@ -191,18 +195,26 @@ func (util *UserInfoUtil_) TransToDtos(userinfos ...UserInfo) dto.UserInfoDtos {
 	return dtos
 }
 
-func (util *UserInfoUtil_) JoinUint32(ids []uint32) string {
-	var idsStr string
-	for i, id := range ids {
-		idsStr = fmt.Sprintf("%s%d", idsStr, id)
-		if i+1 == len(ids) {
-			break
-		}
-		idsStr += ","
+// transToDto2 转换为 UserInfoDto2
+func (util *UserInfoUtil_) transToDto2(userinfo UserInfo) dto.UserInfoDto2 {
+	var dto_ dto.UserInfoDto2
+	err := copier.Copy(&dto_, &userinfo)
+	if err != nil {
+		log.Printf("Failed to copy struct , source == %v , dest == %v , err == %v ... \n", userinfo, dto_, err)
 	}
-	return idsStr
+	return dto_
 }
 
+// TransToDto2s 批量转换为 UserInfoDto2
+func (util *UserInfoUtil_) TransToDto2s(userinfos ...UserInfo) []dto.UserInfoDto2 {
+	var dtos []dto.UserInfoDto2
+	for _, info := range userinfos {
+		dtos = append(dtos, util.transToDto2(info))
+	}
+	return dtos
+}
+
+// IdIsExists 检查 id串中是否有个 id
 func (util *UserInfoUtil_) IdIsExists(ids string, id uint32) bool {
 	idStr := fmt.Sprintf("%d", id)
 	idArr := strings.Split(ids, ",")
@@ -214,10 +226,39 @@ func (util *UserInfoUtil_) IdIsExists(ids string, id uint32) bool {
 	return false
 }
 
+// AddToList 添加某个 id串到 id列表中
 func (util *UserInfoUtil_) AddToList(list *string, target string) {
 	if *list == "" {
 		*list += target
 	} else if target != "" {
 		*list += "," + target
 	}
+}
+
+// TransToUint32Arr 转化string数组为uint32数组
+func (util *UserInfoUtil_) TransToUint32Arr(strs []string) []uint32 {
+	var ret []uint32
+	for _, str := range strs {
+		num, err := strconv.Atoi(str)
+		if err == nil {
+			ret = append(ret, uint32(num))
+		}
+	}
+	return ret
+}
+
+// CheckListIsMax 检查id串是否达到最大值
+func (util *UserInfoUtil_) CheckListIsMax(list string) bool {
+	return len(strings.Split(list, ",")) >= 500
+}
+
+// DeleteFromList 从id列表中删除某个id
+func (util *UserInfoUtil_) DeleteFromList(list *string, targetId uint32) {
+	UintIds := utils.ParseListToUint(*list)
+	for i := range UintIds {
+		if UintIds[i] == targetId {
+			utils.RemoveIdFromList(&UintIds, i)
+		}
+	}
+	*list = utils.JoinUint32(UintIds)
 }

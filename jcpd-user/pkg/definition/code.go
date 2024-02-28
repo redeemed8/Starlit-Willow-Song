@@ -21,10 +21,11 @@ var (
 	PwdError   = common.NormalErr{Code: 3022, Msg: "密码错误，请仔细检查"}
 	PwdNotSet  = common.NormalErr{Code: 3023, Msg: "密码未设置，请使用手机号登录"}
 
-	UnameNotFormat = common.NormalErr{Code: 3031, Msg: "用户名不符合规范"}
-	UnameExists    = common.NormalErr{Code: 3032, Msg: "该用户名已被使用"}
-	UnameNotFound  = common.NormalErr{Code: 3033, Msg: "用户名不存在"}
-	UserNotFound   = common.NormalErr{Code: 3034, Msg: "未找到相关的用户信息"}
+	UnameNotFormat  = common.NormalErr{Code: 3031, Msg: "用户名不符合规范"}
+	UnameExists     = common.NormalErr{Code: 3032, Msg: "该用户名已被使用"}
+	UnameNotFound   = common.NormalErr{Code: 3033, Msg: "用户名不存在"}
+	UserNotFound    = common.NormalErr{Code: 3034, Msg: "未找到相关的用户信息"}
+	UnameNotMatchId = common.NormalErr{Code: 3035, Msg: "用户名和id不匹配"}
 
 	NotLogin      = common.NormalErr{Code: 3041, Msg: "未登录或登录已过期"}
 	NotAuth2Token = common.NormalErr{Code: 3042, Msg: "无权限令牌不能修改"}
@@ -39,15 +40,20 @@ var (
 	NotFountAnyUser = common.NormalErr{Code: 3064, Msg: "附近没有发现任何人哦"}
 
 	IntroduceNotFormat = common.NormalErr{Code: 3071, Msg: "介绍信息不符合规范"}
-	NotAddFriendAgain  = common.NormalErr{Code: 3072, Msg: "你们已经是好友啦"}
-	NotSendApplyAgain  = common.NormalErr{Code: 3073, Msg: "你以前已经发送过请求咯~"}
-	InvalidApplyStatus = common.NormalErr{Code: 3074, Msg: "无效的审核状态"}
-	InvalidApplyType   = common.NormalErr{Code: 3075, Msg: "无效的申请类型"}
-	StatusNotUpdate    = common.NormalErr{Code: 3076, Msg: "该审核状态无法修改"}
-	StatusNotToUpdate  = common.NormalErr{Code: 3077, Msg: "无法修改成此审核状态"}
-	ApplyNotFound      = common.NormalErr{Code: 3078, Msg: "未找到相关的申请信息"}
+	NotSendApplyAgain  = common.NormalErr{Code: 3072, Msg: "你以前已经发送过请求咯~"}
+	InvalidApplyStatus = common.NormalErr{Code: 3073, Msg: "无效的审核状态"}
+	InvalidApplyType   = common.NormalErr{Code: 3074, Msg: "无效的申请类型"}
+	StatusNotUpdate    = common.NormalErr{Code: 3075, Msg: "该审核状态无法修改"}
+	StatusNotToUpdate  = common.NormalErr{Code: 3076, Msg: "无法修改成此审核状态"}
+	ApplyNotFound      = common.NormalErr{Code: 3077, Msg: "未找到相关的申请信息"}
 
 	GroupNameNotFormat = common.NormalErr{Code: 3081, Msg: "群名称不符合规范"}
 	GroupPostNotFormat = common.NormalErr{Code: 3082, Msg: "群公告不符合规范"}
 	GroupMaxNumTidy    = common.NormalErr{Code: 3083, Msg: "群人数应大于1人"}
+	GroupNotFound      = common.NormalErr{Code: 3084, Msg: "该群不存在或已被解散"}
+	NoGroupAdmin       = common.NormalErr{Code: 3085, Msg: "你不是群主或管理员"}
+
+	NotAddFriendAgain = common.NormalErr{Code: 3091, Msg: "你们已经是好友啦"}
+	FriendEnough      = common.NormalErr{Code: 3092, Msg: "好友数量已达上限"}
+	IsNotFriend       = common.NormalErr{Code: 3093, Msg: "你们还不是好友"}
 )

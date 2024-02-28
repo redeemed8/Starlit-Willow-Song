@@ -27,6 +27,8 @@ func (*RouterApply) Router(r *gin.Engine) {
 		applyserviceGroup.POST("/tobe/friend", handler.ApplyToBeFriend)
 		applyserviceGroup.GET("/get/all", handler.GetAllAppliesByStatus)
 		applyserviceGroup.POST("/update/status", handler.UpdateApplyStatus)
+		applyserviceGroup.POST("/toadd/group", handler.ApplyToGroup)
+		applyserviceGroup.POST("/update/group-status", handler.UpdateApplyGroupStatus)
 	}
 
 	go handler.CleanUsedApply(CleanHour) // 定时清理一些已经通过或拒绝了的申请

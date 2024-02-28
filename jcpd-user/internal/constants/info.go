@@ -2,6 +2,7 @@ package constants
 
 import (
 	"context"
+	"errors"
 	"github.com/go-redis/redis/v8"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -11,6 +12,12 @@ import (
 	"sync"
 	"time"
 )
+
+type MysqlErr_ struct{}
+
+func (*MysqlErr_) CheckMysqlErr(err error) bool {
+	return err != nil && !errors.Is(err, gorm.ErrRecordNotFound)
+}
 
 // 两个设备对应的 once，让对应设备的异常恢复只有一次执行，防止处理异常的协程过多
 var mysqlOnce = newOnce()

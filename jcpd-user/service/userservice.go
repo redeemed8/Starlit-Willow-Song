@@ -19,12 +19,15 @@ import (
 	"jcpd.cn/user/utils"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
 // UserHandler user路由的处理器 -- 用于管理各种接口的实现
 type UserHandler struct {
 	cache definition.Cache
+	errs  constants.MysqlErr_
 }
 
 func NewUserHandler(type_ definition.CacheType) *UserHandler {
@@ -507,6 +510,36 @@ func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, resp.Success(models.UserInfoUtil.TransToDtos(queryUser).First()))
 }
 
+// GetUserByName 根据有户名查找用户
+// api : /users/search?name=xxx  [get]  LOGIN
+func (h *UserHandler) GetUserByName(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, _ := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	username := ctx.Query("name")
+	if ok := models.UserInfoUtil.CheckUsername(username); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFound))
+		return
+	}
+	//	3. 根据名字查询
+	userInfo, err := models.UserInfoDao.GetUserByUsername(username)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("根据用户名获取用户信息失败", err)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if userInfo.Username == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFound))
+		return
+	}
+	//	4. 封装为 dto进行返回
+	ctx.JSON(http.StatusOK, resp.Success(models.UserInfoUtil.TransToDtos(userInfo).First()))
+}
+
 // UploadUserCurPos 上传用户 当前经纬度坐标 -- 可以选择在用户登录,或进入程序时调用
 // api : /users/upload/cur/pos  [post]
 // post_args : {"x":"xxx","y":"xxx"} json LOGIN
@@ -619,7 +652,7 @@ func (h *UserHandler) GetUserNearby(ctx *gin.Context) {
 }
 
 // CreateGroup 创建群聊
-// api : /users/create/group [post]
+// api : /users/group/create [post]
 // post_args : {"group_name":"xxx","group_post":"xxx","max_person_num":xxx}  json LOGIN
 func (h *UserHandler) CreateGroup(ctx *gin.Context) {
 	resp := common.NewResp()
@@ -653,11 +686,326 @@ func (h *UserHandler) CreateGroup(ctx *gin.Context) {
 		LordId: userClaim.Id, AdminIds: "", MemberIds: "",
 		CurPersonNum: 0, MaxPersonNum: createVo.MaxPersonNum,
 	}
-	err9 := models.GroupInfoDao.CreateGroup(groupInfo)
+	err9 := models.GroupInfoDao.CreateGroup(&groupInfo)
 	if err9 != nil && !errors.Is(err9, gorm.ErrRecordNotFound) {
 		constants.MysqlErr("添加群信息失败", err9)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
-	ctx.JSON(http.StatusOK, resp.Success("创建成功"))
+	//	5. 获取群id
+	map_ := map[string]string{"group_id": strconv.Itoa(int(groupInfo.Id))}
+	//  6. 获取群主信息
+	curUser, err22 := models.UserInfoDao.GetUserById(userClaim.Id)
+	if h.errs.CheckMysqlErr(err22) {
+		constants.MysqlErr("根据id查用户出错", err22)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	7. 添加群id到 群主用户的群列表
+	models.UserInfoUtil.AddToList(&curUser.GroupList, strconv.Itoa(int(groupInfo.Id)))
+	err12 := models.UserInfoDao.UpdateUser(userClaim.Id, models.UserInfo{GroupList: curUser.GroupList})
+	if h.errs.CheckMysqlErr(err12) {
+		constants.MysqlErr("修改用户群列表失败", err12)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success(map_))
+}
+
+// GetGroupInfoById 根据 群id 获取群基本信息
+// api : /users/group/getinfo/byid?id=xxx  [get]  LOGIN
+func (h *UserHandler) GetGroupInfoById(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, _ := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	id, err1 := strconv.Atoi(ctx.Query("id"))
+	if err1 != nil || id < 1 {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 根据 id获取 groupinfo
+	groupInfo, err2 := models.GroupInfoDao.GetGroupInfoById(uint32(id))
+	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("根据id获取 groupinfo失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if groupInfo.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	//	4. 封装成 dto进行返回
+	ctx.JSON(http.StatusOK, resp.Success(models.GroupInfoUtil.TransToDto(groupInfo)))
+}
+
+// GetGroupByName	根据群名查群
+// api : /users/group/search?name=xxx  [get]  LOGIN
+func (h *UserHandler) GetGroupByName(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, _ := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	groupName := ctx.Query("name")
+	if ok := models.GroupInfoUtil.CheckGroupName(&groupName); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNameNotFormat))
+		return
+	}
+	//	3. 查数据库
+	groupInfo, err1 := models.GroupInfoDao.GetGroupInfoByName(groupName)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据群名获取群失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if groupInfo.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	//	4.  封装为 dto返回
+	ctx.JSON(http.StatusOK, resp.Success(models.GroupInfoUtil.TransToDto(groupInfo)))
+}
+
+// UpdateGroupInfo 修改群基本信息
+// api : /users/group/update/info  [post]
+// post_args : {"id":xxx,"group_name":"xxx","group_post":"xxx","max_person_num":xxx}  json  LOGIN
+func (h *UserHandler) UpdateGroupInfo(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var updateVo = vo.UserVoHelper.NewUserVo().UpdateGroupInfoVo
+	if err := ctx.ShouldBind(&updateVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 获取群信息
+	queryGroup, err1 := models.GroupInfoDao.GetGroupInfoById(uint32(updateVo.Id))
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取群信息失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryGroup.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	if userClaim.Id != queryGroup.LordId && !models.GroupInfoUtil.IsAdmin(queryGroup, userClaim.Id) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NoGroupAdmin))
+		return
+	}
+	//	4. 参数校验 和 保存
+	var groupInfo models.GroupInfo
+	if models.GroupInfoUtil.CheckGroupName(&(updateVo.GroupName)) {
+		groupInfo.GroupName = updateVo.GroupName
+	}
+	if models.GroupInfoUtil.CheckGroupPost(&(updateVo.GroupPost)) {
+		groupInfo.GroupPost = updateVo.GroupPost
+	}
+	if models.GroupInfoUtil.CheckGroupMaxNum(&(updateVo.MaxPersonNum)) {
+		groupInfo.MaxPersonNum = updateVo.MaxPersonNum
+	}
+	//	4. 更新
+	err9 := models.GroupInfoDao.UpdateGroup(uint32(updateVo.Id), groupInfo)
+	if h.errs.CheckMysqlErr(err9) {
+		constants.MysqlErr("更新群基本信息失败", err9)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success("群信息已经更新"))
+}
+
+// GetOwnFriendList 获取自己的好友列表
+// api : /users/friend/getlist  [get]  LOGIN
+func (h *UserHandler) GetOwnFriendList(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取用户信息
+	curUser, err1 := models.UserInfoDao.GetUserById(userClaim.Id)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取用户信息失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	friendIds := models.UserInfoUtil.TransToUint32Arr(strings.Split(curUser.FriendList, ","))
+	if len(friendIds) <= 0 {
+		ctx.JSON(http.StatusOK, resp.Success(make(dto.UserInfoDtos, 0)))
+		return
+	}
+	friends, err2 := models.UserInfoDao.GetUsersByIds(friendIds)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("根据 id获取所有好友信息失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	3. 封装为 dto返回
+	ctx.JSON(http.StatusOK, resp.Success(models.UserInfoUtil.TransToDto2s(friends...)))
+}
+
+// GetJoinedGroup 获取自己的群聊列表
+// api : /users/group/getlist  [get]  LOGIN
+func (h *UserHandler) GetJoinedGroup(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取用户信息
+	curUser, err1 := models.UserInfoDao.GetUserById(userClaim.Id)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取用户信息失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	groupIds := models.UserInfoUtil.TransToUint32Arr(strings.Split(curUser.GroupList, ","))
+	if len(groupIds) <= 0 {
+		ctx.JSON(http.StatusOK, resp.Success(make([]dto.GroupInfoDto, 0)))
+		return
+	}
+	groups, err3 := models.GroupInfoDao.GetGroupsByIds(groupIds)
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("根据 id获取所有群信息失败", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success(groups.Names()))
+}
+
+// DeleteFriendById 删除好友
+// api : /users/delete/friend  [post]
+// post_args : {"id":xxx,"username":"xxx"}  json  LOGIN
+func (h *UserHandler) DeleteFriendById(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var deleteVo = vo.UserVoHelper.NewUserVo().DeleteUserVo
+	if err := ctx.ShouldBind(&deleteVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 检查用户 id和 name是否真实
+	toDeleteUser, err1 := models.UserInfoDao.GetUserById(uint32(deleteVo.Id))
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取用户信息失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if toDeleteUser.Username != deleteVo.Username {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotMatchId))
+		return
+	}
+	//	3.5 检查双方是否是好友
+	if exists := models.UserInfoUtil.IdIsExists(toDeleteUser.FriendList, userClaim.Id); !exists {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.IsNotFriend))
+		return
+	}
+	//	4. 在对方好友列表中删除自己
+	models.UserInfoUtil.DeleteFromList(&toDeleteUser.FriendList, userClaim.Id)
+	err2 := models.UserInfoDao.UpdateUserByMap(toDeleteUser.Id, map[string]interface{}{"friend_list": toDeleteUser.FriendList})
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("更新用户好友列表失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	5. 得到当前用户信息，并在当前用户列表中删除对方
+	curUser, err3 := models.UserInfoDao.GetUserById(userClaim.Id)
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("根据id获取用户信息失败", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	models.UserInfoUtil.DeleteFromList(&curUser.FriendList, toDeleteUser.Id)
+	err4 := models.UserInfoDao.UpdateUserByMap(curUser.Id, map[string]interface{}{"friend_list": curUser.FriendList})
+	if h.errs.CheckMysqlErr(err4) {
+		constants.MysqlErr("更新用户好友列表失败", err4)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success("删除成功"))
+}
+
+// ExitGroup 退出群聊
+// api : /users/group/exit [post]
+// post_args : {"group_id":xxx}  json  LOGIN
+func (h *UserHandler) ExitGroup(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	// 	2. 绑定参数
+	var exitVo = vo.UserVoHelper.NewUserVo().ExitGroupVo
+	if err := ctx.ShouldBind(&exitVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 检验群id是否存在
+	groupInfo, err1 := models.GroupInfoDao.GetGroupInfoById(exitVo.GroupId)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取群信息失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if groupInfo.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	//	4. 如果是群主退出，则直接解散群聊
+	if userClaim.Id == groupInfo.LordId {
+		_ = models.GroupInfoDao.DeleteGroupById(groupInfo.Id)
+		ctx.JSON(http.StatusOK, resp.Success("该群已被你解散"))
+		//	然后要定时
+		return
+	}
+	//	5. 先在用户群列表中删除掉该群的id
+	curUser, err2 := models.UserInfoDao.GetUserById(userClaim.Id)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("根据id获取用户信息失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	models.UserInfoUtil.DeleteFromList(&curUser.GroupList, groupInfo.Id)
+	err3 := models.UserInfoDao.UpdateUserByMap(curUser.Id, map[string]interface{}{"group_id": curUser.GroupList})
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("更新用户群列表失败", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	6. 在群管理列表和群成员列表中删除当前用户id
+	models.GroupInfoUtil.DeleteFromList(&groupInfo.AdminIds, userClaim.Id)
+	models.GroupInfoUtil.DeleteFromList(&groupInfo.MemberIds, userClaim.Id)
+	err4 := models.GroupInfoDao.UpdateGroupByMap(groupInfo.Id,
+		map[string]interface{}{"admin_ids": groupInfo.AdminIds, "member_ids": groupInfo.MemberIds})
+	if h.errs.CheckMysqlErr(err4) {
+		constants.MysqlErr("更新群用户列表失败", err4)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, "已退出群聊")
+}
+
+// ChooseUserToBeAdmin 将某人设置为管理员
+// api : /users/group/set/admin  [post]
+// post_api : {"user_id":xxx,"group_id":xxx}  json  LOGIN
+func (h *UserHandler) ChooseUserToBeAdmin(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, "testing...")
 }

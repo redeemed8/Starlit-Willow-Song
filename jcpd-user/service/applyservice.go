@@ -160,7 +160,7 @@ func (h *ApplyHandler) GetAllAppliesByStatus(ctx *gin.Context) {
 
 // UpdateApplyStatus 修改申请状态 - 好友邀请
 // api : /users/apply/update/status  [post]
-// post_args : {"username":"xxx","apply_type":"xxx","cur_status":"xxx","to_status":"xxx"}  json  LOGIN
+// post_args : {"username":"xxx","cur_status":"xxx","to_status":"xxx"}  json  LOGIN
 func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
@@ -178,11 +178,6 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 	//	校验用户名
 	if ok := models.UserInfoUtil.CheckUsername(updateVo.Username); !ok {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFormat))
-		return
-	}
-	//	申请类型
-	if ok := models.JoinApplyUtil.CheckType(updateVo.ApplyType); !ok {
-		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidApplyType))
 		return
 	}
 	//	当前审核状态
@@ -209,7 +204,7 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 		return
 	}
 	//	5. 获取对应的申请信息
-	columnMap := map[string]interface{}{"sender_id": queryUser.Id, "receiver_id": userClaim.Id, "apply_type": updateVo.ApplyType, "status": curStatus}
+	columnMap := map[string]interface{}{"sender_id": queryUser.Id, "receiver_id": userClaim.Id, "status": curStatus}
 	apply, err2 := models.JoinApplyDao.GetApplyByMap(columnMap)
 	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
 		constants.MysqlErr("修改申请状态时获取申请信息失败", err2)
@@ -234,17 +229,33 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 	if toStatus == models.JoinApplyUtil.GetAcceptedStatus() {
 		//	获取当前用户信息
 		curUser, _ := models.UserInfoDao.GetUserById(userClaim.Id)
-		if updateVo.ApplyType == models.Friend {
-			//	添加申请人到当前人的好友列表
-			models.UserInfoUtil.AddToList(&curUser.FriendList, strconv.Itoa(int(queryUser.Id)))
-			columnMap_ := map[string]interface{}{"friend_list": curUser.FriendList}
-			_ = models.UserInfoDao.UpdateUserByMap(curUser.Id, columnMap_)
-			//	添加当前人到申请人的好友列表
-			models.UserInfoUtil.AddToList(&queryUser.FriendList, strconv.Itoa(int(curUser.Id)))
-			columnMap_["friend_list"] = queryUser.FriendList
-			_ = models.UserInfoDao.UpdateUserByMap(queryUser.Id, columnMap_)
+		if models.UserInfoUtil.CheckListIsMax(curUser.FriendList) {
+			ctx.JSON(http.StatusOK, resp.Fail(definition.FriendEnough))
+			return
 		}
+		//	添加申请人到当前人的好友列表
+		models.UserInfoUtil.AddToList(&curUser.FriendList, strconv.Itoa(int(queryUser.Id)))
+		columnMap_ := map[string]interface{}{"friend_list": curUser.FriendList}
+		_ = models.UserInfoDao.UpdateUserByMap(curUser.Id, columnMap_)
+		//	添加当前人到申请人的好友列表
+		models.UserInfoUtil.AddToList(&queryUser.FriendList, strconv.Itoa(int(curUser.Id)))
+		columnMap_["friend_list"] = queryUser.FriendList
+		_ = models.UserInfoDao.UpdateUserByMap(queryUser.Id, columnMap_)
 	}
 	retMap := map[string]string{"cur_status_ret": toStatus.ToString(), "update_ret": "申请信息已修改"}
 	ctx.JSON(http.StatusOK, retMap)
+}
+
+// ApplyToGroup 申请加入某个群聊
+// api : /users/apply/toadd/group  [post]
+// post_args : {"group_id":xxx,"introduction":"xxx"}  json  LOGIN
+func (h *ApplyHandler) ApplyToGroup(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, "testing...")
+}
+
+// UpdateApplyGroupStatus 修改加群申请状态
+// api : /users/apply/update/group-status  [post]
+// post_api : {"username":"xxx","cur_status":"xxx","to_status":"xxx"}  json  LOGIN
+func (h *ApplyHandler) UpdateApplyGroupStatus(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, "testing...")
 }
