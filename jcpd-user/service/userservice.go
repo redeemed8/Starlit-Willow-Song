@@ -131,10 +131,12 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 	}
 	//	4. 没被使用，那就可以为其注册
 	userinfo := models.UserInfo{
-		Username: register.Username,
-		Password: utils.Md5Sum(register.Password),
-		UUID:     uuid.New().String(),
-		Sex:      models.UserInfoUtil.GetDefaultSex(),
+		Username:   register.Username,
+		Password:   utils.Md5Sum(register.Password),
+		UUID:       uuid.New().String(),
+		Sex:        models.UserInfoUtil.GetDefaultSex(),
+		FriendList: models.UserInfoUtil.GetListDelimiter(),
+		GroupList:  models.UserInfoUtil.GetListDelimiter(),
 	}
 	err2 := models.UserInfoDao.CreateUser(userinfo)
 	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
@@ -197,10 +199,12 @@ func (h *UserHandler) LoginMobile(ctx *gin.Context) {
 	if queryUser.Phone == "" {
 		//	第一次登录，为其创建用户信息
 		userinfo := models.UserInfo{
-			Phone:    loginInfo.Mobile,
-			Username: models.UserInfoUtil.GetDefaultName(),
-			UUID:     uuid.New().String(),
-			Sex:      models.UserInfoUtil.GetDefaultSex(),
+			Phone:      loginInfo.Mobile,
+			Username:   models.UserInfoUtil.GetDefaultName(),
+			UUID:       uuid.New().String(),
+			Sex:        models.UserInfoUtil.GetDefaultSex(),
+			FriendList: models.UserInfoUtil.GetListDelimiter(),
+			GroupList:  models.UserInfoUtil.GetListDelimiter(),
 		}
 		err3 := models.UserInfoDao.CreateUser(userinfo)
 		if err3 != nil {

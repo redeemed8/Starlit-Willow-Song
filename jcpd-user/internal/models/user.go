@@ -46,8 +46,8 @@ type UserInfo struct {
 	UUID       string    `gorm:"size:37;not null"`         //	用户身份标识 - 存储在jwt中，会随着密码的修改而修改
 	Sex        string    `gorm:"size:2"`                   //	性别   0女  1男  2未知
 	Sign       string    `gorm:"type:text"`                //	个性签名
-	FriendList string    `gorm:"type:text;default:','"`    //	好友列表
-	GroupList  string    `gorm:"type:text;default:','"`    //	群聊列表
+	FriendList string    `gorm:"type:text"`                //	好友列表
+	GroupList  string    `gorm:"type:text"`                //	群聊列表
 	CreatedAt  time.Time `gorm:"autoCreateTime"`           //	创建时间
 }
 
@@ -121,6 +121,22 @@ func (info *UserInfoDao_) UpdateUser(id uint32, anyInfo interface{}) error {
 	return info.DB.Model(&UserInfo{}).Where("id = ?", id).Updates(anyInfo).Error
 }
 
+func (info *UserInfoDao_) GroupListUpdates(groupId uint32, ids []uint32) error {
+	var groupIdStr = strconv.Itoa(int(groupId))
+	idsStr := utils.JoinUint32(ids)
+	sqlSlice := []string{
+		"update",
+		UserInfoTN,
+		"set group_list =",
+		fmt.Sprintf("REPLACE(group_list,',%s,',',')", groupIdStr),
+		fmt.Sprintf("where id in (%s)", idsStr),
+	}
+	sql_ := strings.Join(sqlSlice, " ")
+	fmt.Println(sql_)
+	//return info.DB.Model(&UserInfo{}).Exec(sql_).Error
+	return nil
+}
+
 // ----------------------------------
 
 // CheckUsername 检查用户名是否合法
@@ -142,6 +158,12 @@ func (util *UserInfoUtil_) CheckSign(sign string) bool {
 // GetDefaultSex 获取默认性别
 func (util *UserInfoUtil_) GetDefaultSex() string {
 	return DefaultSex
+}
+
+const ListDelimiter = ","
+
+func (util *UserInfoUtil_) GetListDelimiter() string {
+	return ListDelimiter
 }
 
 // DefaultNamePrefix	默认用户名前缀

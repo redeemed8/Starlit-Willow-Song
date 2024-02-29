@@ -13,3 +13,8 @@ CREATE TABLE IF NOT EXISTS 5613_userinfo
     created_at  timestamp DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB;
 
+# 批量更新用户的所在群列表
+UPDATE 5613_userinfo
+SET group_list = REPLACE(group_list, ',2,', ',')
+WHERE id IN (1);
+
