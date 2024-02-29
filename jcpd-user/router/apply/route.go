@@ -17,8 +17,6 @@ func init() {
 type RouterApply struct {
 }
 
-const CleanHour = 12
-
 // Router 实现方法，放置路由
 func (*RouterApply) Router(r *gin.Engine) {
 	handler := service.NewApplyHandler(definition.CacheRedis)
@@ -30,7 +28,4 @@ func (*RouterApply) Router(r *gin.Engine) {
 		applyserviceGroup.POST("/toadd/group", handler.ApplyToGroup)
 		applyserviceGroup.POST("/update/group-status", handler.UpdateApplyGroupStatus)
 	}
-
-	go handler.CleanUsedApply(CleanHour) // 定时清理一些已经通过或拒绝了的申请
-
 }

@@ -5,7 +5,6 @@ import (
 	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/models/dto"
 	"jcpd.cn/user/internal/options"
-	"jcpd.cn/user/utils"
 	"regexp"
 	"strconv"
 	"strings"
@@ -33,9 +32,12 @@ type GroupInfo struct {
 	MaxPersonNum int       `gorm:"not null;default:100"`     //	最大人数
 	CreatedAt    time.Time //	创建时间
 	UpdatedAt    time.Time //	更新时间
+	Status       string    `gorm:"default:'ok';index"` // 群信息状态 -- ok表示正常，deleted表示群已被解散
 }
 
 const GroupInfoTN = "5433_group"
+const GroupDeleted = "deleted"
+const GroupOK = "ok"
 
 // TableName 表名
 func (table *GroupInfo) TableName() string {
@@ -67,10 +69,10 @@ func (info *GroupInfoDao_) GetGroupsByIds(ids []uint32) (GroupInfos, error) {
 }
 
 // GetGroupInfoByName 根据 name获取群信息
-func (info *GroupInfoDao_) GetGroupInfoByName(groupName string) (GroupInfo, error) {
-	var group GroupInfo
-	result := info.DB.Model(&GroupInfo{}).Where("group_name = ?", groupName).First(&group)
-	return group, result.Error
+func (info *GroupInfoDao_) GetGroupInfoByName(groupName string) (*GroupInfos, error) {
+	groups := make(GroupInfos, 0)
+	result := info.DB.Model(&GroupInfo{}).Where("group_name = ?", groupName).First(&groups)
+	return &groups, result.Error
 }
 
 // UpdateGroup 根据 GroupInfo更新群信息
@@ -92,17 +94,36 @@ func (info *GroupInfoDao_) DeleteGroupById(id uint32) error {
 
 type GroupInfos []GroupInfo
 
+// Names 获取所有的群名称
 func (groups *GroupInfos) Names() []string {
 	var names []string
 	for _, group := range *groups {
-		names = append(names, group.GroupName)
+		if group.GroupName != "" {
+			names = append(names, group.GroupName)
+		}
 	}
 	return names
+}
+
+// RemoveDeleted 排除所有已被删除的
+func (groups *GroupInfos) RemoveDeleted() *GroupInfos {
+	groupArr := make(GroupInfos, 0)
+	for _, group := range *groups {
+		if group.Status == GroupOK && group.GroupName != "" {
+			groupArr = append(groupArr, group)
+		}
+	}
+	return &groupArr
 }
 
 // GetDefaultPost 获取默认的群公告
 func (util *GroupInfoUtil_) GetDefaultPost() string {
 	return "该群暂无群公告~"
+}
+
+// GetDeletedStatus 获取群被删除的状态
+func (util *GroupInfoUtil_) GetDeletedStatus() string {
+	return GroupDeleted
 }
 
 // CheckGroupName 检查群名称
@@ -142,6 +163,9 @@ func (util *GroupInfoUtil_) parseIds(idStr_ *string) []uint32 {
 	}
 	ids := make([]uint32, 0) //	结果
 	for _, idStr := range idStrArr {
+		if idStr == "" {
+			continue
+		}
 		//	转换为 uint32
 		id, err := strconv.Atoi(idStr)
 		if err != nil || id < 1 {
@@ -166,6 +190,15 @@ func (util *GroupInfoUtil_) TransToDto(group GroupInfo) dto.GroupInfoDto {
 	}
 }
 
+// TransToDtos 批量封装为 dto
+func (util *GroupInfoUtil_) TransToDtos(groups GroupInfos) []dto.GroupInfoDto {
+	var ret []dto.GroupInfoDto
+	for _, group := range groups {
+		ret = append(ret, util.TransToDto(group))
+	}
+	return ret
+}
+
 // IsAdmin 检查一个用户是否是某群的管理员
 func (util *GroupInfoUtil_) IsAdmin(groupInfo GroupInfo, userId uint32) bool {
 	idStr := strconv.Itoa(int(userId))
@@ -180,11 +213,6 @@ func (util *GroupInfoUtil_) IsAdmin(groupInfo GroupInfo, userId uint32) bool {
 
 // DeleteFromList 从id列表中删除某个id
 func (util *GroupInfoUtil_) DeleteFromList(list *string, targetId uint32) {
-	UintIds := utils.ParseListToUint(*list)
-	for i := range UintIds {
-		if UintIds[i] == targetId {
-			utils.RemoveIdFromList(&UintIds, i)
-		}
-	}
-	*list = utils.JoinUint32(UintIds)
+	target := "," + strconv.Itoa(int(targetId)) + ","
+	*list = strings.Replace(*list, target, ",", 1)
 }

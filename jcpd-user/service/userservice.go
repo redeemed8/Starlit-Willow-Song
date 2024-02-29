@@ -684,7 +684,7 @@ func (h *UserHandler) CreateGroup(ctx *gin.Context) {
 	groupInfo := models.GroupInfo{
 		GroupName: createVo.GroupName, GroupPost: createVo.GroupPost,
 		LordId: userClaim.Id, AdminIds: "", MemberIds: "",
-		CurPersonNum: 0, MaxPersonNum: createVo.MaxPersonNum,
+		CurPersonNum: 1, MaxPersonNum: createVo.MaxPersonNum,
 	}
 	err9 := models.GroupInfoDao.CreateGroup(&groupInfo)
 	if err9 != nil && !errors.Is(err9, gorm.ErrRecordNotFound) {
@@ -734,7 +734,7 @@ func (h *UserHandler) GetGroupInfoById(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
-	if groupInfo.GroupName == "" {
+	if groupInfo.GroupName == "" || groupInfo.Status == models.GroupInfoUtil.GetDeletedStatus() {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
 		return
 	}
@@ -758,18 +758,18 @@ func (h *UserHandler) GetGroupByName(ctx *gin.Context) {
 		return
 	}
 	//	3. 查数据库
-	groupInfo, err1 := models.GroupInfoDao.GetGroupInfoByName(groupName)
+	groupInfos, err1 := models.GroupInfoDao.GetGroupInfoByName(groupName)
 	if h.errs.CheckMysqlErr(err1) {
 		constants.MysqlErr("根据群名获取群失败", err1)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
-	if groupInfo.GroupName == "" {
+	if len(*groupInfos) < 1 {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
 		return
 	}
 	//	4.  封装为 dto返回
-	ctx.JSON(http.StatusOK, resp.Success(models.GroupInfoUtil.TransToDto(groupInfo)))
+	ctx.JSON(http.StatusOK, resp.Success(models.GroupInfoUtil.TransToDtos(*groupInfos.RemoveDeleted())))
 }
 
 // UpdateGroupInfo 修改群基本信息
@@ -882,7 +882,8 @@ func (h *UserHandler) GetJoinedGroup(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
-	ctx.JSON(http.StatusOK, resp.Success(groups.Names()))
+	//	3. 过滤掉已被删除的群
+	ctx.JSON(http.StatusOK, resp.Success(groups.RemoveDeleted().Names()))
 }
 
 // DeleteFriendById 删除好友
@@ -971,9 +972,10 @@ func (h *UserHandler) ExitGroup(ctx *gin.Context) {
 	}
 	//	4. 如果是群主退出，则直接解散群聊
 	if userClaim.Id == groupInfo.LordId {
-		_ = models.GroupInfoDao.DeleteGroupById(groupInfo.Id)
+		//	将群状态标记为 deleted
+		_ = models.GroupInfoDao.UpdateGroupByMap(groupInfo.Id, map[string]interface{}{"status": models.GroupDeleted})
 		ctx.JSON(http.StatusOK, resp.Success("该群已被你解散"))
-		//	然后要定时
+		//	然后做一个定时任务，定时去数据库的 群id列表中删除 已解散的群id
 		return
 	}
 	//	5. 先在用户群列表中删除掉该群的id

@@ -46,8 +46,8 @@ type UserInfo struct {
 	UUID       string    `gorm:"size:37;not null"`         //	用户身份标识 - 存储在jwt中，会随着密码的修改而修改
 	Sex        string    `gorm:"size:2"`                   //	性别   0女  1男  2未知
 	Sign       string    `gorm:"type:text"`                //	个性签名
-	FriendList string    `gorm:"type:text"`                //	好友列表
-	GroupList  string    `gorm:"type:text"`                //	群聊列表
+	FriendList string    `gorm:"type:text;default:','"`    //	好友列表
+	GroupList  string    `gorm:"type:text;default:','"`    //	群聊列表
 	CreatedAt  time.Time `gorm:"autoCreateTime"`           //	创建时间
 }
 
@@ -228,17 +228,16 @@ func (util *UserInfoUtil_) IdIsExists(ids string, id uint32) bool {
 
 // AddToList 添加某个 id串到 id列表中
 func (util *UserInfoUtil_) AddToList(list *string, target string) {
-	if *list == "" {
-		*list += target
-	} else if target != "" {
-		*list += "," + target
-	}
+	*list += target + ","
 }
 
 // TransToUint32Arr 转化string数组为uint32数组
 func (util *UserInfoUtil_) TransToUint32Arr(strs []string) []uint32 {
 	var ret []uint32
 	for _, str := range strs {
+		if str == "" {
+			continue
+		}
 		num, err := strconv.Atoi(str)
 		if err == nil {
 			ret = append(ret, uint32(num))
@@ -247,18 +246,15 @@ func (util *UserInfoUtil_) TransToUint32Arr(strs []string) []uint32 {
 	return ret
 }
 
+const MaxPersonNum = 500
+
 // CheckListIsMax 检查id串是否达到最大值
 func (util *UserInfoUtil_) CheckListIsMax(list string) bool {
-	return len(strings.Split(list, ",")) >= 500
+	return len(strings.Split(list, ",")) >= MaxPersonNum+2 //	最大为 500人
 }
 
 // DeleteFromList 从id列表中删除某个id
 func (util *UserInfoUtil_) DeleteFromList(list *string, targetId uint32) {
-	UintIds := utils.ParseListToUint(*list)
-	for i := range UintIds {
-		if UintIds[i] == targetId {
-			utils.RemoveIdFromList(&UintIds, i)
-		}
-	}
-	*list = utils.JoinUint32(UintIds)
+	target := "," + strconv.Itoa(int(targetId)) + ","
+	*list = strings.Replace(*list, target, ",", 1)
 }
