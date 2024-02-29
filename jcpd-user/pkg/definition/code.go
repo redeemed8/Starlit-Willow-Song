@@ -52,6 +52,9 @@ var (
 	GroupMaxNumTidy    = common.NormalErr{Code: 3083, Msg: "群人数应大于1人"}
 	GroupNotFound      = common.NormalErr{Code: 3084, Msg: "该群不存在或已被解散"}
 	NoGroupAdmin       = common.NormalErr{Code: 3085, Msg: "你不是群主或管理员"}
+	AlreadyIsAdmin     = common.NormalErr{Code: 3086, Msg: "你已经是管理员了"}
+	OnlyLordUpdate     = common.NormalErr{Code: 3087, Msg: "只有群主才有权限修改"}
+	IsNotGroupMember   = common.NormalErr{Code: 3088, Msg: "该用户不是群成员"}
 
 	NotAddFriendAgain = common.NormalErr{Code: 3091, Msg: "你们已经是好友啦"}
 	FriendEnough      = common.NormalErr{Code: 3092, Msg: "好友数量已达上限"}

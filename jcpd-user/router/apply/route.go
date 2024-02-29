@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-// 添加 user路由到路由列表
+// 添加 apply路由到路由列表
 func init() {
 	log.Println("Application one init apply router ...")
 	router.Register(&RouterApply{})

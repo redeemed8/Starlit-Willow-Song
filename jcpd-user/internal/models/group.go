@@ -211,6 +211,24 @@ func (util *GroupInfoUtil_) IsAdmin(groupInfo GroupInfo, userId uint32) bool {
 	return false
 }
 
+// IsMember 检查一个用户是否是某群的成员
+func (util *GroupInfoUtil_) IsMember(groupInfo GroupInfo, userId uint32) bool {
+	idStr := strconv.Itoa(int(userId))
+	ids := strings.Split(groupInfo.MemberIds, ",")
+	for _, id := range ids {
+		if id == idStr {
+			return true
+		}
+	}
+	return false
+}
+
+// AddToList 添加某个 id串到 id列表中
+func (util *GroupInfoUtil_) AddToList(list *string, target string) string {
+	*list += target + ","
+	return *list
+}
+
 // DeleteFromList 从id列表中删除某个id
 func (util *GroupInfoUtil_) DeleteFromList(list *string, targetId uint32) {
 	target := "," + strconv.Itoa(int(targetId)) + ","

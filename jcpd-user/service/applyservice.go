@@ -18,6 +18,7 @@ import (
 // ApplyHandler apply路由的处理器 -- 用于管理各种接口的实现
 type ApplyHandler struct {
 	cache definition.Cache
+	errs  constants.MysqlErr_
 }
 
 func NewApplyHandler(type_ definition.CacheType) *ApplyHandler {
