@@ -66,3 +66,15 @@ func JoinUint32(ids []uint32) string {
 	}
 	return idsStr[:len(idsStr)-1]
 }
+
+// FindIdFromIdsStr 检查一个id串中是否含有某个id
+func FindIdFromIdsStr(ids string, userId uint32) bool {
+	idStr := strconv.Itoa(int(userId))
+	ids_ := strings.Split(ids, ",")
+	for _, id := range ids_ {
+		if id == idStr {
+			return true
+		}
+	}
+	return false
+}

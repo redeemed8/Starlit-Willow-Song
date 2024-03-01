@@ -78,12 +78,19 @@ func (join *JoinApplyDao_) CreateApply(apply JoinApply) error {
 
 // GetApplyByMap 根据 指定的信息获取 一条申请信息
 func (join *JoinApplyDao_) GetApplyByMap(columnMap map[string]interface{}) (JoinApply, error) {
-	var applies JoinApply
-	result := join.DB.Model(&JoinApply{}).Where(columnMap).First(&applies)
-	return applies, result.Error
+	var apply JoinApply
+	result := join.DB.Model(&JoinApply{}).Where(columnMap).First(&apply)
+	return apply, result.Error
 }
 
-// GetAppliesByMap 根据 指定的信息获取 多条申请信息
+// GetApplyByInfo 根据 指定给定的 Apply获取 一条申请信息
+func (join *JoinApplyDao_) GetApplyByInfo(apply JoinApply) (JoinApply, error) {
+	var apply_ JoinApply
+	result := join.DB.Model(&JoinApply{}).Where(apply).First(&apply_)
+	return apply_, result.Error
+}
+
+// GetAppliesByMap 根据 指定的信息 获取 多条申请信息
 func (join *JoinApplyDao_) GetAppliesByMap(columnMap map[string]interface{}) (JoinApplies, error) {
 	var applies JoinApplies
 	result := join.DB.Model(&JoinApply{}).Where(columnMap).Find(&applies)
@@ -93,6 +100,11 @@ func (join *JoinApplyDao_) GetAppliesByMap(columnMap map[string]interface{}) (Jo
 // UpdateApplyByMap 根据 map更新记录
 func (join *JoinApplyDao_) UpdateApplyByMap(id uint32, columnMap map[string]interface{}) error {
 	return join.DB.Model(&JoinApply{}).Where("id = ?", id).Updates(columnMap).Error
+}
+
+// UpdateApplyByInfo 根据 指定的信息 更新记录
+func (join *JoinApplyDao_) UpdateApplyByInfo(conditions JoinApply, updates JoinApply) error {
+	return join.DB.Model(&JoinApply{}).Where(conditions).Updates(updates).Error
 }
 
 const ExpireDay = -7
@@ -122,7 +134,7 @@ func (map_ *SenderidApplyMap) Keys() []uint32 {
 	return keys
 }
 
-func (applies *JoinApplies) TransToApplyInfoDtos(status ApplyStatus) (dto.ApplyInfoDtos, error) {
+func (applies *JoinApplies) TransToApplyInfoDtos() (dto.ApplyInfoDtos, error) {
 	//	转换成 sendId - apply 的map
 	senderidApplyMap := applies.senderIdsMap()
 	//	根据 map的key获取到所有的相关用户
@@ -136,7 +148,7 @@ func (applies *JoinApplies) TransToApplyInfoDtos(status ApplyStatus) (dto.ApplyI
 		dtos = append(dtos, dto.ApplyInfoDto{
 			Username:     user.Username,
 			Sex:          user.Sex,
-			Status:       status.ToString(),
+			Status:       senderidApplyMap[user.Id].Status.ToString(),
 			Introduction: senderidApplyMap[user.Id].Introduction,
 		})
 	}
@@ -168,6 +180,10 @@ func (util *JoinApplyUtil_) GetDftIntroduce() string {
 	return "Hi~ 我想成为你的朋友~,可以吗？"
 }
 
+func (util *JoinApplyUtil_) GetDftGroupIntroduce() string {
+	return "Hi~ 大家好，我是新人一枚 ~"
+}
+
 func (util *JoinApplyUtil_) GetDftWebStatus() ApplyStatus {
 	return NotKnown
 }
@@ -183,6 +199,17 @@ func (util *JoinApplyUtil_) GetAcceptedStatus() ApplyStatus {
 func (util *JoinApplyUtil_) CheckIntroduce(introduce *string) bool {
 	if *introduce == "" {
 		*introduce = util.GetDftIntroduce()
+		return true
+	}
+	if len(*introduce) > 300 {
+		return false
+	}
+	return regexp.MustCompile(constants.IntroduceRegex).MatchString(*introduce)
+}
+
+func (util *JoinApplyUtil_) CheckGroupIntroduce(introduce *string) bool {
+	if *introduce == "" {
+		*introduce = util.GetDftGroupIntroduce()
 		return true
 	}
 	if len(*introduce) > 300 {

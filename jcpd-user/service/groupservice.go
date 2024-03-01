@@ -71,8 +71,8 @@ func (h *GroupHandler) CreateGroup(ctx *gin.Context) {
 	//	4. 创建群信息
 	groupInfo := models.GroupInfo{
 		GroupName: createVo.GroupName, GroupPost: createVo.GroupPost,
-		LordId: userClaim.Id, AdminIds: ",", MemberIds: ",",
-		CurPersonNum: 1, MaxPersonNum: createVo.MaxPersonNum,
+		LordId: userClaim.Id, AdminIds: ",", MemberIds: "," + strconv.Itoa(int(userClaim.Id)) + ",",
+		CurPersonNum: 1, MaxPersonNum: createVo.MaxPersonNum, BlackList: ",",
 	}
 	err9 := models.GroupInfoDao.CreateGroup(&groupInfo)
 	if err9 != nil && !errors.Is(err9, gorm.ErrRecordNotFound) {
@@ -372,12 +372,142 @@ func (h *GroupHandler) ChooseUserToBeAdmin(ctx *gin.Context) {
 // api : /users/group/cancel/admin  [post]
 // post_args : {"user_id":xxx,"group_id":xxx}  json  LOGIN
 func (h *GroupHandler) CancelUserAdmin(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing...")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var toBeAdminVo = vo.UserVoHelper.NewUserVo().ToBeAdminVo
+	if err := ctx.ShouldBind(&toBeAdminVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 参数校验
+	queryUser, err1 := models.UserInfoDao.GetUserById(toBeAdminVo.UserId) //	校验要取消admin的人是否存在
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取用户信息异常", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryUser.Username == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserNotFound))
+		return
+	}
+	queryGroup, err2 := models.GroupInfoDao.GetGroupInfoById(toBeAdminVo.GroupId) //	校验群是否存在
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("根据id获取 群group信息异常", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryGroup.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	//	4. 判断是否有权限
+	if queryGroup.LordId != userClaim.Id {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.OnlyLordUpdate))
+		return
+	}
+	//	5. 校验 user_id是否是管理员
+	if !models.GroupInfoUtil.IsMember(queryGroup, queryUser.Id) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.IsNotGroupMember))
+		return
+	}
+	if !models.GroupInfoUtil.IsAdmin(queryGroup, queryUser.Id) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserIsNotAdmin))
+		return
+	}
+	//	6. 将 user_id 从管理员名单串中移除
+	err3 := models.GroupInfoDao.UpdateGroupByMap(
+		queryGroup.Id, map[string]interface{}{"admin_ids": models.GroupInfoUtil.DeleteFromList(&queryGroup.AdminIds, queryUser.Id)})
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("更新群管理员信息异常", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success("已撤销其管理员资格"))
 }
 
 // KickUserFromGroup 将用户踢出群聊
 // api : /users/group/kick  [post]
 // post_api : {"kick_user_id":xxx,"group_id":xxx}  json  LOGIN
 func (h *GroupHandler) KickUserFromGroup(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing...")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var kickVo = vo.UserVoHelper.NewUserVo().KickUserFromGroupVo
+	if err := ctx.ShouldBind(&kickVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 参数校验
+	queryUser, err1 := models.UserInfoDao.GetUserById(kickVo.KickUserId) //	校验要踢出的用户是否存在
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取用户信息异常", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryUser.Username == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserNotFound))
+		return
+	}
+	queryGroup, err2 := models.GroupInfoDao.GetGroupInfoById(kickVo.GroupId) //	校验群是否存在
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("根据id获取 群group信息异常", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryGroup.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	if !models.GroupInfoUtil.IsMember(queryGroup, queryUser.Id) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.IsNotGroupMember))
+		return
+	}
+	//	4. 判断是否有权限
+	permission := userClaim.Id == queryGroup.LordId
+	if !permission && models.GroupInfoUtil.IsAdmin(queryGroup, userClaim.Id) {
+		permission = true
+	}
+	if !permission {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserPermissionDenied)) //	过滤掉普通成员
+		return
+	}
+	if queryGroup.LordId == queryUser.Id {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.LordNotKicked)) //	群主无法被踢出
+		return
+	}
+	ok := userClaim.Id == queryGroup.LordId || (models.GroupInfoUtil.IsAdmin(queryGroup, userClaim.Id) && !models.GroupInfoUtil.IsAdmin(queryGroup, queryUser.Id))
+	if !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserPermissionDenied))
+		return
+	}
+	//	5. 踢出此人并加入黑名单
+	groupInfo := models.GroupInfo{
+		AdminIds:     models.GroupInfoUtil.DeleteFromList(&queryGroup.AdminIds, queryUser.Id),
+		MemberIds:    models.GroupInfoUtil.DeleteFromList(&queryGroup.MemberIds, queryUser.Id),
+		CurPersonNum: queryGroup.CurPersonNum - 1,
+		BlackList:    models.GroupInfoUtil.AddToList(&queryGroup.BlackList, strconv.Itoa(int(queryUser.Id))),
+	}
+	if err := models.GroupInfoDao.UpdateGroup(queryGroup.Id, groupInfo); h.errs.CheckMysqlErr(err) {
+		constants.MysqlErr("踢出用户时，更新群人员信息异常", err)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	userInfo := models.UserInfo{
+		GroupList: models.UserInfoUtil.DeleteFromList(&queryUser.GroupList, queryGroup.Id),
+	}
+	if err := models.UserInfoDao.UpdateUser(queryUser.Id, userInfo); h.errs.CheckMysqlErr(err) {
+		constants.MysqlErr("踢出用户时，更新被踢人员的群列表异常", err)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success("该用户成功被踢出并且加入黑名单"))
 }

@@ -110,37 +110,23 @@ func (h *ApplyHandler) ApplyToBeFriend(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, resp.Success("请求已发起，等待对方审核.."))
 }
 
-// GetAllAppliesByStatus 获取所有的申请 - 好友或群邀请
-// api : /users/apply/get/all?status=xxx&type=[friend/group]  [get]  LOGIN
-func (h *ApplyHandler) GetAllAppliesByStatus(ctx *gin.Context) {
+// GetAllFriendApply 获取所有的好友申请
+// api : /users/apply/get-friend/all  [get]  LOGIN
+func (h *ApplyHandler) GetAllFriendApply(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
 	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
-	//	2. 获取路径参数
-	s := ctx.Query("status")
-	status := models.JoinApplyUtil.TransToStatus(s)
-	if status == models.JoinApplyUtil.GetDftWebStatus() {
-		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidApplyStatus))
-		return
-	}
-	t := ctx.Query("type")
-	if ok := models.JoinApplyUtil.CheckType(t); !ok {
-		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidApplyType))
-		return
-	}
-
-	//	3. 根据 审核状态status 和 接收人id 获取到所有的 apply信息
+	//	2. 根据 接收人id 获取到所有的 好友apply信息
 	columnMap := map[string]interface{}{
-		"status":      status,
 		"receiver_id": userClaim.Id,
-		"apply_type":  t,
+		"apply_type":  models.Friend,
 	}
 	applies, err1 := models.JoinApplyDao.GetAppliesByMap(columnMap)
-	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
-		constants.MysqlErr("根据 审核状态status 和 接收人id 获取到所有的 apply信息出错", err1)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据 接收人id 获取到所有的 apply信息出错", err1)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
@@ -149,8 +135,8 @@ func (h *ApplyHandler) GetAllAppliesByStatus(ctx *gin.Context) {
 		return
 	}
 	//	4. 转换成 ApplyInfoDto 的集合
-	dtos, err2 := applies.TransToApplyInfoDtos(status)
-	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
+	dtos, err2 := applies.TransToApplyInfoDtos()
+	if h.errs.CheckMysqlErr(err2) {
 		constants.MysqlErr("applies转换为ApplyInfoDtos出错", err2)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
@@ -159,8 +145,67 @@ func (h *ApplyHandler) GetAllAppliesByStatus(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, resp.Success(dtos))
 }
 
+// GetAllGroupApply 获取某个群的 所有申请
+// api : /users/apply/get-group/all?groupid=xxx  [get]  LOGIN
+func (h *ApplyHandler) GetAllGroupApply(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	groupIdStr := ctx.Query("groupid")
+	groupIdInt, err1 := strconv.Atoi(groupIdStr)
+	if groupIdStr == "" || err1 != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	groupId := uint32(groupIdInt)
+	//	3. 根据群 id获取到群信息
+	queryGroup, err2 := models.GroupInfoDao.GetGroupInfoById(groupId)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("根据群id获取群group信息失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryGroup.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	//	3.5 校验权限
+	if userClaim.Id != queryGroup.LordId && !models.GroupInfoUtil.IsAdmin(queryGroup, userClaim.Id) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserPermissionDenied))
+		return
+	}
+	//	4. 查出所有申请
+	columnMap := map[string]interface{}{
+		"receiver_id": queryGroup.Id,
+		"apply_type":  models.Group,
+	}
+	applies, err3 := models.JoinApplyDao.GetAppliesByMap(columnMap)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据 接收人id 获取到所有的 apply信息出错", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if len(applies) == 0 {
+		ctx.JSON(http.StatusOK, resp.Success(dto.ApplyInfoDtos{}))
+		return
+	}
+	//	5. 转换成 ApplyInfoDto 的集合
+	dtos, err4 := applies.TransToApplyInfoDtos()
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("applies转换为ApplyInfoDtos出错", err4)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	5. 返回
+	ctx.JSON(http.StatusOK, resp.Success(dtos))
+}
+
 // UpdateApplyStatus 修改申请状态 - 好友邀请
-// api : /users/apply/update/status  [post]
+// api : /users/apply/update/friend-status  [post]
 // post_args : {"username":"xxx","cur_status":"xxx","to_status":"xxx"}  json  LOGIN
 func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 	resp := common.NewResp()
@@ -205,7 +250,8 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 		return
 	}
 	//	5. 获取对应的申请信息
-	columnMap := map[string]interface{}{"sender_id": queryUser.Id, "receiver_id": userClaim.Id, "status": curStatus}
+	columnMap := map[string]interface{}{
+		"sender_id": queryUser.Id, "receiver_id": userClaim.Id, "status": curStatus, "apply_type": models.Friend}
 	apply, err2 := models.JoinApplyDao.GetApplyByMap(columnMap)
 	if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
 		constants.MysqlErr("修改申请状态时获取申请信息失败", err2)
@@ -251,12 +297,171 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 // api : /users/apply/toadd/group  [post]
 // post_args : {"group_id":xxx,"introduction":"xxx"}  json  LOGIN
 func (h *ApplyHandler) ApplyToGroup(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing...")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var applyVo = vo.ApplyVoHelper.NewApplyVo().ApplyGroupVo
+	if err := ctx.ShouldBind(&applyVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 参数校验
+	if ok := models.JoinApplyUtil.CheckGroupIntroduce(&applyVo.Introduction); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.IntroduceNotFormat))
+		return
+	}
+	queryGroup, err1 := models.GroupInfoDao.GetGroupInfoById(applyVo.GroupId)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取群group信息出错", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryGroup.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	//	4. 检查该人是否已经是该群的成员了 或者 是否存在于黑名单中
+	if models.GroupInfoUtil.IsMember(queryGroup, userClaim.Id) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.AlreadyIsMember))
+		return
+	}
+	if models.GroupInfoUtil.IsExistBlackList(queryGroup, userClaim.Id) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.AlreadyExistBlackList))
+		return
+	}
+	//	5. 检查以前是否已经发送过申请，但是还未被处理
+	apply := models.JoinApply{
+		SenderId:   userClaim.Id,
+		ReceiverId: queryGroup.Id,
+		ApplyType:  models.Group,
+		Status:     models.Pending,
+	}
+	queryApply, err2 := models.JoinApplyDao.GetApplyByInfo(apply)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("获取历史群申请记录时出错", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryApply.ApplyType != "" {
+		//	不可重复申请
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotSendApplyAgain))
+		return
+	}
+	//	6. 有申请资格 但是没申请过，添加一个申请
+	apply.Introduction = applyVo.Introduction
+	err3 := models.JoinApplyDao.CreateApply(apply)
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("添加群申请记录时出错", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success("请求已发起，等待对方审核.."))
 }
 
 // UpdateApplyGroupStatus 修改加群申请状态
 // api : /users/apply/update/group-status  [post]
-// post_api : {"username":"xxx","cur_status":"xxx","to_status":"xxx"}  json  LOGIN
+// post_api : {"username":"xxx","group_id":xxx,"cur_status":"xxx","to_status":"xxx"}  json  LOGIN
 func (h *ApplyHandler) UpdateApplyGroupStatus(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "testing...")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var updateVo = vo.ApplyVoHelper.NewApplyVo().UdtApplyGroupStatusVo
+	if err := ctx.ShouldBind(&updateVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 参数校验
+	//	校验用户名
+	if ok := models.UserInfoUtil.CheckUsername(updateVo.Username); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnameNotFormat))
+		return
+	}
+	//	当前审核状态
+	curStatus := models.JoinApplyUtil.TransToStatus(updateVo.CurStatus)
+	if curStatus != models.JoinApplyUtil.GetPendStatus() {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.StatusNotUpdate))
+		return
+	}
+	//	要修改成的审核状态
+	toStatus := models.JoinApplyUtil.TransToStatus(updateVo.ToStatus)
+	if toStatus != models.AAA && toStatus != models.RRR {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.StatusNotToUpdate))
+		return
+	}
+	//	4. 获取到请求人的信息
+	queryUser, err1 := models.UserInfoDao.GetUserByUsername(updateVo.Username)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据用户名获取用户信息失败", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryUser.Username == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserNotFound))
+		return
+	}
+	//	5. 获取群信息
+	queryGroup, err2 := models.GroupInfoDao.GetGroupInfoById(updateVo.GroupId)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("根据id获取群group信息失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryGroup.GroupName == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	//	5.5 判断权限
+
+	fmt.Println(userClaim.Id)
+	fmt.Println(queryGroup.Id)
+	fmt.Println(queryGroup.AdminIds)
+
+	if userClaim.Id != queryGroup.LordId && !models.GroupInfoUtil.IsAdmin(queryGroup, userClaim.Id) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserPermissionDenied))
+		return
+	}
+	//	6. 修改对应的申请信息
+	applyConditions := models.JoinApply{SenderId: queryUser.Id, ReceiverId: queryGroup.Id, Status: curStatus, ApplyType: models.Group}
+	applyUpdates := models.JoinApply{Status: toStatus}
+	err3 := models.JoinApplyDao.UpdateApplyByInfo(applyConditions, applyUpdates)
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("修改群申请状态时失败", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if errors.Is(err3, gorm.ErrRecordNotFound) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ApplyNotFound))
+		return
+	}
+	if toStatus == models.JoinApplyUtil.GetAcceptedStatus() {
+		//	7. 在该群的id列表中 添加此人id
+		groupInfo := models.GroupInfo{
+			MemberIds:    models.GroupInfoUtil.AddToList(&queryGroup.MemberIds, strconv.Itoa(int(queryUser.Id))),
+			CurPersonNum: queryGroup.CurPersonNum + 1,
+		}
+		err4 := models.GroupInfoDao.UpdateGroup(queryGroup.Id, groupInfo)
+		if h.errs.CheckMysqlErr(err4) {
+			constants.MysqlErr("修改群的成员列表时出错", err4)
+			ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+			return
+		}
+		//	8. 在此人的群列表中添加该群的id
+		userInfo := models.UserInfo{GroupList: models.UserInfoUtil.AddToList(&queryUser.GroupList, strconv.Itoa(int(queryGroup.Id)))}
+		err5 := models.UserInfoDao.UpdateUser(queryUser.Id, userInfo)
+		if h.errs.CheckMysqlErr(err5) {
+			constants.MysqlErr("修改用户的所在群列表时出错", err5)
+			ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+			return
+		}
+	}
+	retMap := map[string]string{"cur_status_ret": toStatus.ToString(), "update_ret": "申请信息已修改"}
+	ctx.JSON(http.StatusOK, retMap)
 }

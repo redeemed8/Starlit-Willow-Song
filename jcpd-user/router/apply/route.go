@@ -23,8 +23,9 @@ func (*RouterApply) Router(r *gin.Engine) {
 	applyserviceGroup := r.Group("/users/apply")
 	{
 		applyserviceGroup.POST("/tobe/friend", handler.ApplyToBeFriend)
-		applyserviceGroup.GET("/get/all", handler.GetAllAppliesByStatus)
-		applyserviceGroup.POST("/update/status", handler.UpdateApplyStatus)
+		applyserviceGroup.GET("/get-friend/all", handler.GetAllFriendApply)
+		applyserviceGroup.GET("/get-group/all", handler.GetAllGroupApply)
+		applyserviceGroup.POST("/update/friend-status", handler.UpdateApplyStatus)
 		applyserviceGroup.POST("/toadd/group", handler.ApplyToGroup)
 		applyserviceGroup.POST("/update/group-status", handler.UpdateApplyGroupStatus)
 	}

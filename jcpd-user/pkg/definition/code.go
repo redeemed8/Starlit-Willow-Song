@@ -53,8 +53,14 @@ var (
 	GroupNotFound      = common.NormalErr{Code: 3084, Msg: "该群不存在或已被解散"}
 	NoGroupAdmin       = common.NormalErr{Code: 3085, Msg: "你不是群主或管理员"}
 	AlreadyIsAdmin     = common.NormalErr{Code: 3086, Msg: "你已经是管理员了"}
-	OnlyLordUpdate     = common.NormalErr{Code: 3087, Msg: "只有群主才有权限修改"}
-	IsNotGroupMember   = common.NormalErr{Code: 3088, Msg: "该用户不是群成员"}
+	UserIsNotAdmin     = common.NormalErr{Code: 3087, Msg: "此人不是还不是管理员哦"}
+	OnlyLordUpdate     = common.NormalErr{Code: 3088, Msg: "只有群主才有权限修改"}
+	IsNotGroupMember   = common.NormalErr{Code: 3089, Msg: "该用户不是群成员"}
+
+	UserPermissionDenied  = common.NormalErr{Code: 3181, Msg: "你还没有操作的权限"}
+	LordNotKicked         = common.NormalErr{Code: 3182, Msg: "无法将群主踢出群聊"}
+	AlreadyIsMember       = common.NormalErr{Code: 3183, Msg: "你已经是该群的成员了"}
+	AlreadyExistBlackList = common.NormalErr{Code: 3184, Msg: "你已被该群加入黑名单，无法加入"}
 
 	NotAddFriendAgain = common.NormalErr{Code: 3091, Msg: "你们已经是好友啦"}
 	FriendEnough      = common.NormalErr{Code: 3092, Msg: "好友数量已达上限"}

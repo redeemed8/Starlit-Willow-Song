@@ -249,8 +249,9 @@ func (util *UserInfoUtil_) IdIsExists(ids string, id uint32) bool {
 }
 
 // AddToList 添加某个 id串到 id列表中
-func (util *UserInfoUtil_) AddToList(list *string, target string) {
+func (util *UserInfoUtil_) AddToList(list *string, target string) string {
 	*list += target + ","
+	return *list
 }
 
 // TransToUint32Arr 转化string数组为uint32数组
@@ -276,7 +277,8 @@ func (util *UserInfoUtil_) CheckListIsMax(list string) bool {
 }
 
 // DeleteFromList 从id列表中删除某个id
-func (util *UserInfoUtil_) DeleteFromList(list *string, targetId uint32) {
+func (util *UserInfoUtil_) DeleteFromList(list *string, targetId uint32) string {
 	target := "," + strconv.Itoa(int(targetId)) + ","
 	*list = strings.Replace(*list, target, ",", 1)
+	return *list
 }

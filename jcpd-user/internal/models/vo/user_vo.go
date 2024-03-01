@@ -5,20 +5,21 @@ var UserVoHelper UserVoHelper_
 type UserVoHelper_ struct{}
 
 type UserVo struct {
-	RegisterVo        RegisterVo
-	LoginMobileVo     LoginMobileVo
-	LoginPasswdVo     LoginPasswdVo
-	BindMobileVo      BindMobileVo
-	RepwdCheckVo      RepwdCheckVo
-	RepwdVo           RepwdVo
-	UpdateUserInfoVo  UpdateUserInfoVo
-	PositionVo        PositionVo
-	PosXYR            PosXYR
-	CreateGroupVo     CreateGroupVo
-	UpdateGroupInfoVo UpdateGroupInfoVo
-	DeleteUserVo      DeleteUserVo
-	ExitGroupVo       ExitGroupVo
-	ToBeAdminVo       ToBeAdminVo
+	RegisterVo          RegisterVo
+	LoginMobileVo       LoginMobileVo
+	LoginPasswdVo       LoginPasswdVo
+	BindMobileVo        BindMobileVo
+	RepwdCheckVo        RepwdCheckVo
+	RepwdVo             RepwdVo
+	UpdateUserInfoVo    UpdateUserInfoVo
+	PositionVo          PositionVo
+	PosXYR              PosXYR
+	CreateGroupVo       CreateGroupVo
+	UpdateGroupInfoVo   UpdateGroupInfoVo
+	DeleteUserVo        DeleteUserVo
+	ExitGroupVo         ExitGroupVo
+	ToBeAdminVo         ToBeAdminVo
+	KickUserFromGroupVo KickUserFromGroupVo
 }
 
 func (*UserVoHelper_) NewUserVo() *UserVo {
@@ -101,4 +102,9 @@ type ExitGroupVo struct {
 type ToBeAdminVo struct {
 	UserId  uint32 `json:"user_id"`
 	GroupId uint32 `json:"group_id"`
+}
+
+type KickUserFromGroupVo struct {
+	KickUserId uint32 `json:"kick_user_id"`
+	GroupId    uint32 `json:"group_id"`
 }

@@ -5,6 +5,7 @@ import (
 	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/models/dto"
 	"jcpd.cn/user/internal/options"
+	"jcpd.cn/user/utils"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,6 +31,7 @@ type GroupInfo struct {
 	MemberIds    string    `gorm:"type:text"`                //	成员 id
 	CurPersonNum int       `gorm:"default:0"`                //	当前人数
 	MaxPersonNum int       `gorm:"not null;default:100"`     //	最大人数
+	BlackList    string    `gorm:"type:text"`                //	黑名单
 	CreatedAt    time.Time //	创建时间
 	UpdatedAt    time.Time //	更新时间
 	Status       string    `gorm:"default:'ok';index"` // 群信息状态 -- ok表示正常，deleted表示群已被解散
@@ -201,26 +203,17 @@ func (util *GroupInfoUtil_) TransToDtos(groups GroupInfos) []dto.GroupInfoDto {
 
 // IsAdmin 检查一个用户是否是某群的管理员
 func (util *GroupInfoUtil_) IsAdmin(groupInfo GroupInfo, userId uint32) bool {
-	idStr := strconv.Itoa(int(userId))
-	ids := strings.Split(groupInfo.AdminIds, ",")
-	for _, id := range ids {
-		if id == idStr {
-			return true
-		}
-	}
-	return false
+	return utils.FindIdFromIdsStr(groupInfo.AdminIds, userId)
 }
 
 // IsMember 检查一个用户是否是某群的成员
 func (util *GroupInfoUtil_) IsMember(groupInfo GroupInfo, userId uint32) bool {
-	idStr := strconv.Itoa(int(userId))
-	ids := strings.Split(groupInfo.MemberIds, ",")
-	for _, id := range ids {
-		if id == idStr {
-			return true
-		}
-	}
-	return false
+	return utils.FindIdFromIdsStr(groupInfo.MemberIds, userId)
+}
+
+// IsExistBlackList 检查一个用户是否存在于群的黑名单中
+func (util *GroupInfoUtil_) IsExistBlackList(groupInfo GroupInfo, userId uint32) bool {
+	return utils.FindIdFromIdsStr(groupInfo.BlackList, userId)
 }
 
 // AddToList 添加某个 id串到 id列表中
@@ -230,7 +223,8 @@ func (util *GroupInfoUtil_) AddToList(list *string, target string) string {
 }
 
 // DeleteFromList 从id列表中删除某个id
-func (util *GroupInfoUtil_) DeleteFromList(list *string, targetId uint32) {
+func (util *GroupInfoUtil_) DeleteFromList(list *string, targetId uint32) string {
 	target := "," + strconv.Itoa(int(targetId)) + ","
 	*list = strings.Replace(*list, target, ",", 1)
+	return *list
 }
