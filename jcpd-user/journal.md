@@ -32,6 +32,7 @@ POINT(0,0), ...);</h4>
 <h3><i>&emsp;&emsp;· (1.2.2). 解决方案 (尚未彻底解决...)</i></h3>
 <h4>&emsp;&emsp;&emsp;&emsp;&emsp;我也尝试过很多办法，看过很多帖子，比如说什么使用string类型或者[]byte类型来接收，</h4>
 <h4>&emsp;&emsp;&emsp;&emsp;&emsp;又或者是，重写结构体的Scan等方法，但是都没什么效果</h4>
+<h4>&emsp;&emsp;&emsp;&emsp;&emsp;我也知道redis也可以做有关地理位置的操作，可是因为以前用的都是redis，所以这次打算使用mysql</h4>
 <h4>&emsp;&emsp;&emsp;&emsp;&emsp;但最后我发现，我的业务好像不用查询POINT，因为可以在Mysql中计算好后，再将对应的记录导出</h4>
 
 
