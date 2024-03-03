@@ -218,6 +218,7 @@ func (h *UserHandler) LoginMobile(ctx *gin.Context) {
 	} else {
 		//	用户以前登录过，直接赋值
 		userClaim.Id = queryUser.Id
+		userClaim.Username = queryUser.Username
 		userClaim.UUID = queryUser.UUID
 	}
 	//	4. 返回 登录token
@@ -263,7 +264,7 @@ func (h *UserHandler) LoginPasswd(ctx *gin.Context) {
 		return
 	}
 	//	4. 用户名密码用过，发放 token
-	token, _ := commonJWT.MakeToken(commonJWT.UserClaims{Id: queryUser.Id, UUID: queryUser.UUID})
+	token, _ := commonJWT.MakeToken(commonJWT.UserClaims{Id: queryUser.Id, Username: queryUser.Username, UUID: queryUser.UUID})
 	ctx.JSON(http.StatusOK, resp.Success(token))
 }
 

@@ -74,17 +74,19 @@ func ParseToken(ctx *gin.Context) (UserClaims, error) {
 	//	判断 身份信息 是否真实
 	id := claims.UserClaim.Id
 	type UUID_ struct {
-		UUID string
+		Username string
+		UUID     string
 	}
+
 	var uuid_ UUID_
-	err1 := DB.Table(TableName+" a").Select("a.uuid").Where("a.id = ?", id).First(&uuid_).Error
+	err1 := DB.Table(TableName+" a").Select("a.uuid,a.username").Where("a.id = ?", id).First(&uuid_).Error
 	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
 		log.Println("查询数据库 uuid异常 , cause by : ", err1)
 		//	TODO 放入消息队列进行通知 ...
 		//  ...
 		return UserClaims{}, DBException
 	}
-	if uuid_.UUID != claims.UserClaim.UUID {
+	if uuid_.UUID != claims.UserClaim.UUID || uuid_.Username != claims.UserClaim.Username {
 		return UserClaims{}, NotLoginError
 	}
 	return UserClaims{Id: id, UUID: claims.UserClaim.UUID}, nil

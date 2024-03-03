@@ -419,11 +419,6 @@ func (h *ApplyHandler) UpdateApplyGroupStatus(ctx *gin.Context) {
 		return
 	}
 	//	5.5 判断权限
-
-	fmt.Println(userClaim.Id)
-	fmt.Println(queryGroup.Id)
-	fmt.Println(queryGroup.AdminIds)
-
 	if userClaim.Id != queryGroup.LordId && !models.GroupInfoUtil.IsAdmin(queryGroup, userClaim.Id) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.UserPermissionDenied))
 		return
