@@ -46,6 +46,25 @@ func NewUserHandler(type_ definition.CacheType) *UserHandler {
 	return &UserHandler{cache: cache_}
 }
 
+// IsLogin 是否登录
+func IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.UserClaims) {
+	userClaims, err := commonJWT.ParseToken(ctx)
+	if errors.Is(err, commonJWT.DBException) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+		return &definition.ServerError, userClaims
+	}
+	if errors.Is(err, commonJWT.NotLoginError) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotLogin))
+		return &definition.NotLogin, userClaims
+	}
+	if err != nil {
+		normalErr := common.ToNormalErr(err)
+		ctx.JSON(http.StatusOK, resp.Fail(normalErr))
+		return &normalErr, userClaims
+	}
+	return nil, userClaims
+}
+
 // GetCaptcha 根据手机号获取验证码,mode为验证码用途,0登录/1修改密码/2绑定手机
 // api : /users/getCaptcha?mobile=xxx&mode=xxx	[get]
 func (h *UserHandler) GetCaptcha(ctx *gin.Context) {
@@ -274,7 +293,7 @@ func (h *UserHandler) LoginPasswd(ctx *gin.Context) {
 func (h *UserHandler) UserBindMobile(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -462,7 +481,7 @@ func (h *UserHandler) Repassword(ctx *gin.Context) {
 func (h *UserHandler) UpdateUserInfo(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -500,7 +519,7 @@ func (h *UserHandler) UpdateUserInfo(ctx *gin.Context) {
 func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -519,7 +538,7 @@ func (h *UserHandler) GetUserInfo(ctx *gin.Context) {
 func (h *UserHandler) GetUserByName(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, _ := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, _ := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -550,7 +569,7 @@ func (h *UserHandler) GetUserByName(ctx *gin.Context) {
 func (h *UserHandler) UploadUserCurPos(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -596,7 +615,7 @@ const NearbyUserMAX = 50
 func (h *UserHandler) GetUserNearby(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -660,7 +679,7 @@ func (h *UserHandler) GetUserNearby(ctx *gin.Context) {
 func (h *UserHandler) GetOwnFriendList(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -692,7 +711,7 @@ func (h *UserHandler) GetOwnFriendList(ctx *gin.Context) {
 func (h *UserHandler) DeleteFriendById(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}

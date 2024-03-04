@@ -44,7 +44,7 @@ func NewApplyHandler(type_ definition.CacheType) *ApplyHandler {
 func (h *ApplyHandler) ApplyToBeFriend(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -115,7 +115,7 @@ func (h *ApplyHandler) ApplyToBeFriend(ctx *gin.Context) {
 func (h *ApplyHandler) GetAllFriendApply(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -150,7 +150,7 @@ func (h *ApplyHandler) GetAllFriendApply(ctx *gin.Context) {
 func (h *ApplyHandler) GetAllGroupApply(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -210,7 +210,7 @@ func (h *ApplyHandler) GetAllGroupApply(ctx *gin.Context) {
 func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -299,7 +299,7 @@ func (h *ApplyHandler) UpdateApplyStatus(ctx *gin.Context) {
 func (h *ApplyHandler) ApplyToGroup(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -368,7 +368,7 @@ func (h *ApplyHandler) ApplyToGroup(ctx *gin.Context) {
 func (h *ApplyHandler) UpdateApplyGroupStatus(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}

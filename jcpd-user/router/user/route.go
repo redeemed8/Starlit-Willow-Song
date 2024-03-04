@@ -11,7 +11,7 @@ import (
 
 // 添加 user路由到路由列表
 func init() {
-	log.Println(constants.Info("Application one init user router ..."))
+	log.Println(constants.Info("Application one api_init user router ..."))
 	router.Register(&RouterUser{})
 }
 

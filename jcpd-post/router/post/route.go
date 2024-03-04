@@ -11,7 +11,7 @@ import (
 
 // 添加 post路由到路由列表
 func init() {
-	log.Println(constants.Info("Application two init post router ..."))
+	log.Println(constants.Info("Application two api_init post router ..."))
 	router.Register(&RouterPost{})
 }
 

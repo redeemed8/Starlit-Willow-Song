@@ -1,0 +1,33 @@
+//  指定当前 proto语法的版本，有2和3
+syntax = "proto3";
+
+//  go_package = "path;name";
+//  path 表示生成的 go文件的存放地址，会自动生成目录的
+//  name 表示生成的 go文件所属的包名，可以不写，默认为 proto文件所属的包名
+//option go_package = "jcpd-user/api/gen";
+option go_package = "jcpd-user/api/service";
+
+//  所以此处使用了go_package最后的包名
+//package gen;
+package service;
+
+//  根据用户id获取用户部分信息 请求体
+message UserRequest{
+  uint32 userId = 1;
+}
+
+//  根据用户id获取用户部分信息 响应体
+message UserResponse{
+  string username = 1;
+  string uuid = 2;
+}
+
+//  用户服务
+service UserService{
+  rpc GetUserById(UserRequest) returns (UserResponse) {}
+}
+
+//  先生成到一个固定目录里
+//  cd 到 jcpd-user/api/gen
+//  protoc --go_out=../gen --go_opt=paths=source_relative --go-grpc_out=../gen --go-grpc_opt=paths=source_relative .\user.proto
+

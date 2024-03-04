@@ -45,7 +45,7 @@ func NewGroupHandler(type_ definition.CacheType) *GroupHandler {
 func (h *GroupHandler) CreateGroup(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -105,7 +105,7 @@ func (h *GroupHandler) CreateGroup(ctx *gin.Context) {
 func (h *GroupHandler) GetGroupInfoById(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, _ := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, _ := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -135,7 +135,7 @@ func (h *GroupHandler) GetGroupInfoById(ctx *gin.Context) {
 func (h *GroupHandler) GetGroupByName(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, _ := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, _ := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -166,7 +166,7 @@ func (h *GroupHandler) GetGroupByName(ctx *gin.Context) {
 func (h *GroupHandler) UpdateGroupInfo(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -217,7 +217,7 @@ func (h *GroupHandler) UpdateGroupInfo(ctx *gin.Context) {
 func (h *GroupHandler) GetJoinedGroup(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -249,7 +249,7 @@ func (h *GroupHandler) GetJoinedGroup(ctx *gin.Context) {
 func (h *GroupHandler) ExitGroup(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -311,7 +311,7 @@ func (h *GroupHandler) ExitGroup(ctx *gin.Context) {
 func (h *GroupHandler) ChooseUserToBeAdmin(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -374,7 +374,7 @@ func (h *GroupHandler) ChooseUserToBeAdmin(ctx *gin.Context) {
 func (h *GroupHandler) CancelUserAdmin(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -436,7 +436,7 @@ func (h *GroupHandler) CancelUserAdmin(ctx *gin.Context) {
 func (h *GroupHandler) KickUserFromGroup(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, userClaim := models.UserInfoUtil.IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}

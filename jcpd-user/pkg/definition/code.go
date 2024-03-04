@@ -6,6 +6,8 @@ var (
 	ServerError       = common.NormalErr{Code: 1001, Msg: "服务器异常"}
 	InvalidArgs       = common.NormalErr{Code: 1002, Msg: "请求参数有误"}
 	ServerMaintaining = common.NormalErr{Code: 1003, Msg: "服务维护中，请稍后再试"}
+	TokenIllegal      = common.NormalErr{Code: 1004, Msg: "token不合法,无法调用api"}
+	TokenLack         = common.NormalErr{Code: 1005, Msg: "缺少token,无法调用api"}
 
 	InvalidMobile  = common.NormalErr{Code: 3001, Msg: "手机号格式不规范"}
 	NotMatchMobile = common.NormalErr{Code: 3002, Msg: "用户名和手机号不匹配"}

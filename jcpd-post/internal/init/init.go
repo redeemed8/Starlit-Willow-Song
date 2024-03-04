@@ -25,7 +25,7 @@ func init() {
 	options.ReadAppConfig()
 	options.ReadMysqlConfig()
 	options.ReadRedisConfig()
-	log.Println(constants.Info("Application two init configuration successfully ... "))
+	log.Println(constants.Info("Application two api_init configuration successfully ... "))
 }
 
 // 初始化 mysql

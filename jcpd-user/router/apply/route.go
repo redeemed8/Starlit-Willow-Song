@@ -11,7 +11,7 @@ import (
 
 // 添加 apply路由到路由列表
 func init() {
-	log.Println(constants.Info("Application one init apply router ..."))
+	log.Println(constants.Info("Application one api_init apply router ..."))
 	router.Register(&RouterApply{})
 }
 

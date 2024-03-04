@@ -20,3 +20,8 @@ mysql:
     addr: 127.0.0.1:3306
   basename: sws
   others: charset=utf8mb4&parseTime=True&loc=Local
+
+# grpc配置
+grpc:
+  addr: "127.0.0.1:7071"
+  name: "jcpduser"

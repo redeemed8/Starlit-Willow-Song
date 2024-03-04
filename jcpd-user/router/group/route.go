@@ -11,7 +11,7 @@ import (
 
 // 添加 group路由到路由列表
 func init() {
-	log.Println(constants.Info("Application one init group router ..."))
+	log.Println(constants.Info("Application one api_init group router ..."))
 	router.Register(&RouterGroup{})
 }
 

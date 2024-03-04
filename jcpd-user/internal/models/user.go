@@ -1,21 +1,15 @@
 package models
 
 import (
-	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
 	"gorm.io/gorm"
-	common "jcpd.cn/common/models"
-	commonJWT "jcpd.cn/common/utils/jwt"
 	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/models/dto"
 	"jcpd.cn/user/internal/options"
-	"jcpd.cn/user/pkg/definition"
 	"jcpd.cn/user/utils"
 	"log"
 	"math/rand"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -174,19 +168,19 @@ func (util *UserInfoUtil_) GetDefaultName() string {
 	return DefaultNamePrefix + utils.MakeCodeWithNumber(11, rand.Intn(10))
 }
 
-// IsLogin 是否登录
-func (util *UserInfoUtil_) IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.UserClaims) {
-	userClaims, err := commonJWT.ParseToken(ctx)
-	if errors.Is(err, commonJWT.DBException) {
-		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
-		return &definition.ServerError, userClaims
-	}
-	if errors.Is(err, commonJWT.NotLoginError) {
-		ctx.JSON(http.StatusOK, resp.Fail(definition.NotLogin))
-		return &definition.NotLogin, userClaims
-	}
-	return nil, userClaims
-}
+//// IsLogin 是否登录
+//func (util *UserInfoUtil_) IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.UserClaims) {
+//	userClaims, err := commonJWT.ParseToken(ctx)
+//	if errors.Is(err, commonJWT.DBException) {
+//		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+//		return &definition.ServerError, userClaims
+//	}
+//	if errors.Is(err, commonJWT.NotLoginError) {
+//		ctx.JSON(http.StatusOK, resp.Fail(definition.NotLogin))
+//		return &definition.NotLogin, userClaims
+//	}
+//	return nil, userClaims
+//}
 
 // TransSex 性别转换
 func (util *UserInfoUtil_) TransSex(sexCode string) string {

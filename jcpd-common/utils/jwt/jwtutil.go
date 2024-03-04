@@ -1,10 +1,12 @@
 package commonJWT
 
 import (
+	"context"
 	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	"jcpd.cn/common/utils/auth"
+	grpcService "jcpd.cn/user/pkg/service"
 	"log"
 	"time"
 )
@@ -35,20 +37,12 @@ func MakeToken(userClaim UserClaims) (string, error) {
 const (
 	TokenHeader   = "X-auth"
 	TokenPathArgs = "auth"
-	TableName     = "5613_userinfo"
 )
 
 var NotLoginError = errors.New("未登录或登录已过期")
 var DBException = errors.New("查询数据库异常")
 
-var DB *gorm.DB
-
-func NewDB(db *gorm.DB) {
-	DB = db
-	if DB != nil {
-		log.Println("JWT mysql connection is inited ...")
-	}
-}
+//	----------------------------------------------
 
 func ParseToken(ctx *gin.Context) (UserClaims, error) {
 	//	从请求头中获取 tokenString
@@ -73,23 +67,12 @@ func ParseToken(ctx *gin.Context) (UserClaims, error) {
 	}
 	//	判断 身份信息 是否真实
 	id := claims.UserClaim.Id
-	type UUID_ struct {
-		Username string
-		UUID     string
-	}
-
-	var uuid_ UUID_
-
 	//	此处方法最后应更换为用 grpc和 proto文件 来调用 user模块中的方法来获取 uuid和 username
-	err1 := DB.Table(TableName+" a").Select("a.uuid,a.username").Where("a.id = ?", id).First(&uuid_).Error
-
-	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
-		log.Println("查询数据库 uuid异常 , cause by : ", err1)
-		//	TODO 放入消息队列进行通知 ...
-		//  ...
-		return UserClaims{}, DBException
+	verifiedUser, err1 := auth.UserServiceClient.GetUserById(context.Background(), &grpcService.UserRequest{UserId: id})
+	if err1 != nil {
+		return UserClaims{}, err1
 	}
-	if uuid_.UUID != claims.UserClaim.UUID || uuid_.Username != claims.UserClaim.Username {
+	if verifiedUser.Uuid != claims.UserClaim.UUID || verifiedUser.Username != claims.UserClaim.Username {
 		return UserClaims{}, NotLoginError
 	}
 	return UserClaims{Id: id, Username: claims.UserClaim.Username, UUID: claims.UserClaim.UUID}, nil

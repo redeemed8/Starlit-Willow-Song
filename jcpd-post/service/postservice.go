@@ -1,10 +1,14 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	common "jcpd.cn/common/models"
+	commonJWT "jcpd.cn/common/utils/jwt"
 	"jcpd.cn/post/internal/constants"
 	"jcpd.cn/post/pkg/definition"
+	"net/http"
 )
 
 // PostHandler post路由的处理器 -- 用于管理各种接口的实现
@@ -30,6 +34,33 @@ func NewPostHandler(type_ definition.CacheType) *PostHandler {
 	return &PostHandler{cache: cache_}
 }
 
+// IsLogin 是否登录
+func IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.UserClaims) {
+	userClaims, err := commonJWT.ParseToken(ctx)
+	if errors.Is(err, commonJWT.DBException) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
+		return &definition.ServerError, userClaims
+	}
+	if errors.Is(err, commonJWT.NotLoginError) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotLogin))
+		return &definition.NotLogin, userClaims
+	}
+	if err != nil {
+		normalErr := common.ToNormalErr(err)
+		ctx.JSON(http.StatusOK, resp.Fail(normalErr))
+		return &normalErr, userClaims
+	}
+	return nil, userClaims
+}
+
 func (*PostHandler) A(ctx *gin.Context) {
-	ctx.JSON(200, "tttt.....")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+
+	//	testing ..
+	ctx.JSON(200, userClaim)
 }
