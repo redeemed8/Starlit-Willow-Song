@@ -16,7 +16,7 @@ var routers []Router
 
 // InitRouter 根据路由列表 初始化路由引擎
 func InitRouter(r *gin.Engine) {
-	//	创建表
+	//	创建表 和 初始化
 	models.InitUser()
 	//  根据路由列表 初始化路由引擎
 	for _, ro := range routers {
