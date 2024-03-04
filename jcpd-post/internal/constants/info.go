@@ -3,6 +3,7 @@ package constants
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/go-redis/redis/v8"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -47,7 +48,7 @@ func MysqlErr(msg string, err error) {
 	//	保证处理函数只会执行一次
 	mysqlOnce.Do(func() {
 		MysqlStatus = Exception
-		log.Printf("Error : Mysql exception , %s , cause by : %v \n", msg, err)
+		log.Printf(Err(fmt.Sprintf("Error : Mysql exception , %s , cause by : %v \n", msg, err)))
 		handleErr(msg, err, MYSQL)
 	})
 }
@@ -59,7 +60,7 @@ func RedisErr(msg string, err error) {
 	//	保证处理函数只会执行一次
 	redisOnce.Do(func() {
 		RedisStatus = Exception
-		log.Printf("Error : Redis exception , %s , cause by : %v \n", msg, err)
+		log.Printf(Err(fmt.Sprintf("Error : Redis exception , %s , cause by : %v \n", msg, err)))
 		handleErr(msg, err, REDIS)
 	})
 }
@@ -69,7 +70,7 @@ const Mobile = "xxxxxx" //	可以写成邮箱，亦可以在配置文件中定�
 func alertErr(msg string, err error) {
 	//	TODO 此处可以通过消息队列异步通知异常到运维人员的邮箱或手机
 	//	...
-	log.Printf("发送异常通知消息到 手机号 : %s , 异常信息 : %s , 错误 : %v ... \n ", Mobile, msg, err)
+	log.Printf(Hint(fmt.Sprintf("发送异常通知消息到 手机号 : %s , 异常信息 : %s , 错误 : %v ... \n ", Mobile, msg, err)))
 }
 
 func handleErr(msg string, err error, device DeviceType) {
@@ -122,17 +123,17 @@ func recoverMysql() {
 	//	初始化连接
 	db, err := gorm.Open(mysql.Open(MysqlDsn), &gorm.Config{Logger: *MysqlLogger})
 	if err != nil {
-		log.Printf("Application one failed to recover Mysql database , cause by : %v ... \n", err)
+		log.Printf("Application two failed to recover Mysql database , cause by : %v ... \n", err)
 		return
 	}
 	if db == nil {
-		log.Println("Application one failed to recover Mysql database , cause by the connection is abnormal , db == nil ...")
+		log.Println(Hint(fmt.Sprintf("Application two failed to recover Mysql database , cause by the connection is abnormal , db == nil ...")))
 		return
 	}
 	//	尝试查询
 	var version string
 	if err1 := db.Raw("Select version()").Scan(&version).Error; err1 != nil || version == "" {
-		log.Printf("Application one failed to recover Mysql database , cause by the connection is abnormal by test , err = %v ... \n", err1)
+		log.Printf(Hint(fmt.Sprintf("Application two failed to recover Mysql database , cause by the connection is abnormal by test , err = %v ... \n", err1)))
 		return
 	}
 	//	查询到 version , 说明成功恢复
@@ -143,7 +144,7 @@ func recoverMysql() {
 	time.Sleep(5 * time.Second)
 	//	恢复 MysqlOnce , 等待下次重用
 	mysqlOnce = newOnce()
-	log.Println("Application one recover Mysql database Successfully ... ")
+	log.Println(Info(fmt.Sprintf("Application two recover Mysql database Successfully ... ")))
 }
 
 var RedisOptions *redis.Options
@@ -152,13 +153,13 @@ func recoverRedis() {
 	//	初始化连接
 	rdb := redis.NewClient(RedisOptions)
 	if rdb == nil {
-		log.Println("Application one failed to recover Redis database , cause by the connection is abnormal , rdb == nil ... ")
+		log.Println(Info(fmt.Sprintf("Application two failed to recover Redis database , cause by the connection is abnormal , rdb == nil ... ")))
 		return
 	}
 	//	测试连接
 	_, err := rdb.Ping(context.Background()).Result()
 	if err != nil {
-		log.Printf("Application one failed to recover Redis database , cause by the connection is abnormal by test , err = %v ... \n", err)
+		log.Printf(Info(fmt.Sprintf("Application two failed to recover Redis database , cause by the connection is abnormal by test , err = %v ... \n", err)))
 		return
 	}
 	//	查询到 version , 说明成功恢复
@@ -169,6 +170,6 @@ func recoverRedis() {
 	time.Sleep(5 * time.Second)
 	//	恢复 MysqlOnce , 等待下次重用
 	redisOnce = newOnce()
-	log.Println("Application one recover Redis database Successfully ... ")
+	log.Println(Info(fmt.Sprintf("Application two recover Redis database Successfully ... ")))
 
 }

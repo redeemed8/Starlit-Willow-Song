@@ -20,12 +20,12 @@ func init() {
 	viper.AddConfigPath("config")      //	配置文件在根目录的位置
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Fatalf("Application one failed to read configuration , cause by : %v ... \n", err)
+		log.Fatalf(constants.Err("Application one failed to read configuration , cause by : " + err.Error() + " ... \n"))
 	}
 	options.ReadAppConfig()
 	options.ReadMysqlConfig()
 	options.ReadRedisConfig()
-	log.Println("Application one init configuration successfully ... ")
+	log.Println(constants.Info("Application one init configuration successfully ... "))
 }
 
 // 初始化 mysql
@@ -46,19 +46,19 @@ func init() {
 	var err error
 	options.C.DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: newLogger})
 	if err != nil {
-		log.Fatalf("Application one failed to connect Mysql database , cause by : %v ... \n", err)
+		log.Fatalf(constants.Err("Application one failed to connect Mysql database , cause by : " + err.Error() + " ... \n"))
 	}
 	if options.C.DB == nil {
-		log.Fatalln("Application one failed to connect Mysql database , cause by the connection is abnormal , db == nil ...")
+		log.Fatalln(constants.Err("Application one failed to connect Mysql database , cause by the connection is abnormal , db == nil ..."))
 	}
 	var version string
 	if err1 := options.C.DB.Raw("Select version()").Scan(&version).Error; err1 != nil || version == "" {
-		log.Fatalf("Application one failed to connect Mysql database , cause by the connection is abnormal by test , err = %v ... \n", err1)
+		log.Fatalf(constants.Err("Application one failed to connect Mysql database , cause by the connection is abnormal by test , err = " + err1.Error() + " ... \n"))
 	}
 	constants.MysqlLogger = &newLogger
 	constants.MysqlDsn = dsn
 	constants.MysqlStatus = constants.OK
-	log.Println("Application one connect Mysql database successfully ...")
+	log.Println(constants.Info("Application one connect Mysql database successfully ..."))
 }
 
 // 初始化 redis
@@ -72,14 +72,14 @@ func init() {
 	}
 	options.C.RDB = redis.NewClient(redisOptions)
 	if options.C.RDB == nil {
-		log.Fatalln("Application one failed to connect Redis database , cause by the connection is abnormal , rdb == nil ... ")
+		log.Fatalln(constants.Err("Application one failed to connect Redis database , cause by the connection is abnormal , rdb == nil ... "))
 	}
 
 	_, err := options.C.RDB.Ping(context.Background()).Result()
 	if err != nil {
-		log.Fatalf("Application one failed to connect Redis database , cause by the connection is abnormal by test , err = %v ... \n", err)
+		log.Fatalf(constants.Err("Application one failed to connect Redis database , cause by the connection is abnormal by test , err = " + err.Error() + " ... \n"))
 	}
 	constants.RedisOptions = redisOptions
 	constants.RedisStatus = constants.OK
-	log.Println("Application one connect Redis database successfully ...")
+	log.Println(constants.Info("Application one connect Redis database successfully ..."))
 }

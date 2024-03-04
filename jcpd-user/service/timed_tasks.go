@@ -77,7 +77,7 @@ func cleanUsedApply() {
 	myTimer_.fillDealFunc(taskFunc)
 	//	加入到定时任务列表
 	TimerTasks.putTimer(cleanApplySign, myTimer_)
-	log.Println("定时任务:清理已审核的申请信息  --  状态：已开启")
+	log.Println(constants.Hint("定时任务:清理已审核的申请信息  --  状态：已开启"))
 }
 
 const cleanGroupHour = 3
@@ -94,7 +94,7 @@ func cleanDeletedGroup() {
 	myTimer_.fillDealFunc(taskFunc)
 	//	加入到定时任务列表
 	TimerTasks.putTimer(cleanGroupSign, myTimer_)
-	log.Println("定时任务:清理已被解散的群聊  --  状态：已开启")
+	log.Println(constants.Hint("定时任务:清理已被解散的群聊  --  状态：已开启"))
 }
 
 // Start 开启定时任务

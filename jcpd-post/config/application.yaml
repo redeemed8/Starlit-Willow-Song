@@ -12,6 +12,8 @@ redis:
   poolSize: 10
   minIdleConn: 5
 
+# 这里我不同服务使用了同一个数据库，正常来说，应该给每个服务都配置一个独立的数据库以提高性能，而且故障互补影响
+
 # mysql 配置
 mysql:
   dsn:

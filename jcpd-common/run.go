@@ -3,7 +3,9 @@ package common
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	color "jcpd.cn/common/utils/color"
 	"log"
 	"net/http"
 	"os"
@@ -20,16 +22,16 @@ func Run(r *gin.Engine, addr string, srvName string, stop func()) {
 	}
 	//	保证下面的优雅启停
 	go func() {
-		log.Printf("%s running in %s \n", srvName, srv.Addr)
+		log.Printf(color.Info(fmt.Sprintf("%s running in %s ...\n", srvName, srv.Addr)))
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("%s failed to start , cause by : %v ... \n", srvName, err)
+			log.Fatalf(color.Err(fmt.Sprintf("%s failed to start , cause by : %v ... \n", srvName, err)))
 		}
 	}()
 	//	标记通道
 	quit := make(chan os.Signal)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Printf("Shutting down project : %s ... \n", srvName)
+	log.Printf(color.Info(fmt.Sprintf("Shutting down project : %s ...", srvName)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -40,13 +42,13 @@ func Run(r *gin.Engine, addr string, srvName string, stop func()) {
 	}
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("project %s Shutdown , cause by : %v ... \n", srvName, err)
+		log.Fatalf(color.Err(fmt.Sprintf("project %s Shutdown , cause by : %v ... \n", srvName, err)))
 	}
 
 	select {
 	case <-ctx.Done():
-		log.Printf("protect %s wait timeout ... \n", srvName)
+		log.Printf(color.Info(fmt.Sprintf("protect %s wait timeout ...", srvName)))
 	}
 
-	log.Printf("project %s stop success ... \n", srvName)
+	log.Printf(color.Info(fmt.Sprintf("project %s stop success ...", srvName)))
 }

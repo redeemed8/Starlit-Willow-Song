@@ -2,6 +2,7 @@ package models
 
 import (
 	commonJWT "jcpd.cn/common/utils/jwt"
+	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/options"
 	"log"
 )
@@ -23,12 +24,12 @@ func newDao() {
 }
 
 func createTables() {
-	log.Println("------------------- create tables --------------------")
+	log.Println(constants.Hint("------------------- create tables --------------------"))
 
 	UserInfoDao.CreateTable()
 	PointInfoDao.CreateTable()
 	JoinApplyDao.CreateTable()
 	GroupInfoDao.CreateTable()
 
-	log.Println("------------------- create success -------------------")
+	log.Println(constants.Hint("------------------- create success -------------------"))
 }

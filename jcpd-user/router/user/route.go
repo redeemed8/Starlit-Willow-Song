@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/gin-gonic/gin"
+	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/pkg/definition"
 	"jcpd.cn/user/router"
 	"jcpd.cn/user/service"
@@ -10,7 +11,7 @@ import (
 
 // 添加 user路由到路由列表
 func init() {
-	log.Println("Application one init user router ...")
+	log.Println(constants.Info("Application one init user router ..."))
 	router.Register(&RouterUser{})
 }
 

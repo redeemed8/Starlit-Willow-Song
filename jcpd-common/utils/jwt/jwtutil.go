@@ -79,7 +79,10 @@ func ParseToken(ctx *gin.Context) (UserClaims, error) {
 	}
 
 	var uuid_ UUID_
+
+	//	此处方法最后应更换为用 grpc和 proto文件 来调用 user模块中的方法来获取 uuid和 username
 	err1 := DB.Table(TableName+" a").Select("a.uuid,a.username").Where("a.id = ?", id).First(&uuid_).Error
+
 	if err1 != nil && !errors.Is(err1, gorm.ErrRecordNotFound) {
 		log.Println("查询数据库 uuid异常 , cause by : ", err1)
 		//	TODO 放入消息队列进行通知 ...
@@ -89,5 +92,5 @@ func ParseToken(ctx *gin.Context) (UserClaims, error) {
 	if uuid_.UUID != claims.UserClaim.UUID || uuid_.Username != claims.UserClaim.Username {
 		return UserClaims{}, NotLoginError
 	}
-	return UserClaims{Id: id, UUID: claims.UserClaim.UUID}, nil
+	return UserClaims{Id: id, Username: claims.UserClaim.Username, UUID: claims.UserClaim.UUID}, nil
 }

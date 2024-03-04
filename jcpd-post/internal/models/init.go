@@ -1,6 +1,7 @@
 package models
 
 import (
+	"jcpd.cn/post/internal/constants"
 	"log"
 )
 
@@ -18,9 +19,9 @@ func newDao() {
 }
 
 func createTables() {
-	log.Println("------------------- create tables --------------------")
+	log.Println(constants.Hint("------------------- create tables --------------------"))
 
 	PostInfoDao.CreateTable()
 
-	log.Println("------------------- create success -------------------")
+	log.Println(constants.Hint("------------------- create success -------------------"))
 }

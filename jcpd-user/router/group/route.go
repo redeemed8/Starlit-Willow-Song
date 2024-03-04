@@ -2,6 +2,7 @@ package group
 
 import (
 	"github.com/gin-gonic/gin"
+	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/pkg/definition"
 	"jcpd.cn/user/router"
 	"jcpd.cn/user/service"
@@ -10,7 +11,7 @@ import (
 
 // 添加 group路由到路由列表
 func init() {
-	log.Println("Application one init group router ...")
+	log.Println(constants.Info("Application one init group router ..."))
 	router.Register(&RouterGroup{})
 }
 
