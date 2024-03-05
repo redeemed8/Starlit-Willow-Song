@@ -9,8 +9,9 @@ CREATE TABLE 3491_postinfo
     body           TEXT         NOT NULL,
     publisher_id   INT UNSIGNED NOT NULL,
     publisher_name VARCHAR(31)  NOT NULL,
-    likes          INT     DEFAULT 0,
-    allow_show     BOOLEAN DEFAULT FALSE
+    likes          INT        DEFAULT 0,
+    review_status  VARCHAR(1) DEFAULT '0',
+    reason         TEXT
 ) ENGINE = InnoDB;
 
 CREATE INDEX ttt ON 3491_postinfo (topic_tag);

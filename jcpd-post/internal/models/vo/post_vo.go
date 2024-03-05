@@ -15,6 +15,6 @@ func (*postVoHelper_) NewPostVo() *postVo {
 
 type publishPostVo struct {
 	Title    string `json:"title"`
-	TopicTag string `json:"topicTag"`
+	TopicTag string `json:"topic"`
 	Body     string `json:"body"`
 }

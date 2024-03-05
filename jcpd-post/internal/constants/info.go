@@ -14,10 +14,14 @@ import (
 	"time"
 )
 
-type MysqlErr_ struct{}
+type Err_ struct{}
 
-func (*MysqlErr_) CheckMysqlErr(err error) bool {
+func (*Err_) CheckMysqlErr(err error) bool {
 	return err != nil && !errors.Is(err, gorm.ErrRecordNotFound)
+}
+
+func (*Err_) CheckRedisErr(err error) bool {
+	return err != nil && !errors.Is(err, redis.Nil)
 }
 
 // 两个设备对应的 once，让对应设备的异常恢复只有一次执行，防止处理异常的协程过多

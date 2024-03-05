@@ -26,7 +26,7 @@ import (
 // UserHandler user路由的处理器 -- 用于管理各种接口的实现
 type UserHandler struct {
 	cache definition.Cache
-	errs  constants.MysqlErr_
+	errs  constants.Err_
 }
 
 func NewUserHandler(type_ definition.CacheType) *UserHandler {

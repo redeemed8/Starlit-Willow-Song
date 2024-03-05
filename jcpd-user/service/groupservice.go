@@ -19,7 +19,7 @@ import (
 // GroupHandler group路由的处理器 -- 用于管理各种接口的实现
 type GroupHandler struct {
 	cache definition.Cache
-	errs  constants.MysqlErr_
+	errs  constants.Err_
 }
 
 func NewGroupHandler(type_ definition.CacheType) *GroupHandler {
