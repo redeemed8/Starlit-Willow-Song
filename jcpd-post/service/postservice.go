@@ -90,3 +90,31 @@ func (h *PostHandler) Publish(ctx *gin.Context) {
 	m := map[string]string{"post_id": strconv.Itoa(int(postInfo.Id)), "ret_msg": "帖子已提交，等待审核通过后即可发布"}
 	ctx.JSON(200, resp.Success(m))
 }
+
+// GetPostSummary 获取帖子简介 - 指定 页码 数量 (最小页码为1) - 根据点赞热度排序
+// api : /posts/get/summary/hot?pagenum=xxx&size=xxx  [get]
+func (h *PostHandler) GetPostSummary(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, _ := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	pagenum := ctx.Query("pagenum")
+	pagesize := ctx.Query("size")
+	//	3. 校验路径参数
+	pageNum, pageSize, err := models.PostInfoUtil.CheckPage(pagenum, pagesize)
+	if err != nil {
+		ctx.JSON(http.StatusOK, resp.Fail(*err))
+		return
+	}
+	//	4. 分页查询
+	postInfos, err1 := models.PostInfoDao.SimpleGetPostsPage(models.PageArgs{PageSize: pageSize, PageNum: pageNum})
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("分页查询帖子信息出错", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
+}

@@ -13,4 +13,7 @@ var (
 	PostTitleNotFormat = common.NormalErr{Code: 4001, Msg: "帖子标题不规范，应少于50字且不能为空"}
 	PostTopicNotFormat = common.NormalErr{Code: 4002, Msg: "帖子主题不规范，应少于20字且不能为空"}
 	PostBodyNotFormat  = common.NormalErr{Code: 4003, Msg: "帖子内容不规范，应少于1500字且不能为空"}
+
+	PageNumNotFormat  = common.NormalErr{Code: 4011, Msg: "分页参数的页码有误，应为正整数"}
+	PageSizeNotFormat = common.NormalErr{Code: 4012, Msg: "分页参数的每页大小有误，应为小于100的非负整数"}
 )

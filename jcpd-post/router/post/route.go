@@ -24,5 +24,6 @@ func (*RouterPost) Router(r *gin.Engine) {
 	postserviceGroup := r.Group("/posts")
 	{
 		postserviceGroup.POST("/publish", handler.Publish)
+		postserviceGroup.GET("/get/summary/hot", handler.GetPostSummary)
 	}
 }

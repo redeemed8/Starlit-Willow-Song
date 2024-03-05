@@ -14,5 +14,9 @@ CREATE TABLE 3491_postinfo
     reason         TEXT
 ) ENGINE = InnoDB;
 
+# 普通索引
 CREATE INDEX ttt ON 3491_postinfo (topic_tag);
 CREATE INDEX ppp ON 3491_postinfo (publisher_id);
+
+# 联合索引
+CREATE INDEX like_time ON 3491_postinfo (likes, updated_at);
