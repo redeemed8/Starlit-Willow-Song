@@ -54,6 +54,7 @@ func (info *postInfoDao_) CreatePost(post *PostInfo) error {
 	return info.DB.Model(&PostInfo{}).Create(post).Error
 }
 
+// SimpleGetPostsPage 简单的分页查询，仅用了联合索引对排序列进行了优化
 func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, error) {
 	//	分页 - 热度优先，时间次之
 	infos := make(PostInfos, 0)
