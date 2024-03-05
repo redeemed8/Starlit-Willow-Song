@@ -7,6 +7,7 @@ import (
 	common "jcpd.cn/common/models"
 	commonJWT "jcpd.cn/common/utils/jwt"
 	"jcpd.cn/post/internal/constants"
+	"jcpd.cn/post/internal/models/vo"
 	"jcpd.cn/post/pkg/definition"
 	"net/http"
 )
@@ -53,13 +54,19 @@ func IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.
 	return nil, userClaims
 }
 
-func (*PostHandler) A(ctx *gin.Context) {
+// Publish 发布一篇帖子
+// api : /posts/publish  [post]
+// post
+func (*PostHandler) Publish(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
 	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
+	//	2. 绑定参数
+	var publishVo = vo.PostVoHelper.NewPostVo().PublishPostVo
+	//	3.
 
 	//	testing ..
 	ctx.JSON(200, userClaim)

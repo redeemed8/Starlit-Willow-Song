@@ -23,6 +23,6 @@ func (*RouterPost) Router(r *gin.Engine) {
 	handler := service.NewPostHandler(definition.CacheRedis)
 	postserviceGroup := r.Group("/posts")
 	{
-		postserviceGroup.GET("/test", handler.A)
+		postserviceGroup.POST("/publish", handler.Publish)
 	}
 }

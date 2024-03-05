@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-var PostInfoDao PostInfoDao_
-var PostInfoUtil PostInfoUtil_
+var PostInfoDao postInfoDao_
+var PostInfoUtil postInfoUtil_
 
-type PostInfoDao_ struct{ DB *gorm.DB }
-type PostInfoUtil_ struct{}
+type postInfoDao_ struct{ DB *gorm.DB }
+type postInfoUtil_ struct{}
 
 func NewPostInfoDao() {
-	PostInfoDao = PostInfoDao_{DB: options.C.DB}
+	PostInfoDao = postInfoDao_{DB: options.C.DB}
 }
 
 // PostInfo 帖子类
@@ -38,8 +38,29 @@ func (post *PostInfo) TableName() string {
 }
 
 // CreateTable 创建表
-func (info *PostInfoDao_) CreateTable() {
+func (info *postInfoDao_) CreateTable() {
 	_ = info.DB.AutoMigrate(&PostInfo{})
 }
 
 // --------------------------------------------------
+
+// CheckPostTitle 检查帖子标题
+func (util *postInfoUtil_) CheckPostTitle(title string) bool {
+
+	return false
+}
+
+// CheckPostTopicTag 检查帖子主题标签
+func (util *postInfoUtil_) CheckPostTopicTag(topicTag string) bool {
+	return false
+}
+
+// CheckPostBody 检查帖子内容
+func (util *postInfoUtil_) CheckPostBody(body string) bool {
+	return false
+}
+
+// CheckPostBase 检查帖子
+func (util *postInfoUtil_) CheckPostBase(post PostInfo) bool {
+	return false
+}
