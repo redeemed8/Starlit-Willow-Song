@@ -2,7 +2,6 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"gorm.io/gorm"
 	common "jcpd.cn/common/models"
 	"jcpd.cn/post/internal/models/dto"
@@ -33,6 +32,8 @@ type PostInfo struct {
 	PublisherId   uint32    `gorm:"not null;index:ppp"`         //	发布人id
 	PublisherName string    `gorm:"not null;size:31"`           //	发布人用户名
 	Likes         int       `gorm:"default:0;index:like_time"`  //	点赞数 - 热度
+	Comments      int       `gorm:"default:0"`                  //	评论数
+	Favorites     int       `gorm:"default:0"`                  //	收藏数
 	ReviewStatus  string    `gorm:"size:1;default:'0'"`         //	审核状态, 0-未审核，1-已通过，2-已驳回
 	Reason        string    //	驳回原因 -- 保存3天
 }
@@ -59,8 +60,8 @@ func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, erro
 	//	分页 - 热度优先，时间次之
 	infos := make(PostInfos, 0)
 	result := info.DB.Model(&PostInfo{}).
-		Where("updated_at >= ?", time.Now().AddDate(0, -1, 0)). //	 优先获取最近一个月内的
-		Order("likes DESC,updated_at DESC").
+		Where("created_at >= ?", time.Now().AddDate(0, -1, 0)). //	 优先获取最近一个月内的,不能说一个视频热就一直热
+		Order("likes DESC,created_at DESC").
 		Limit(pageargs.PageSize).
 		Offset((pageargs.PageNum - 1) * pageargs.PageSize).
 		Find(&infos)
@@ -69,11 +70,25 @@ func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, erro
 	}
 	if infos.size() == 0 { //	此处说明跳过的帖子太多，将一个月内的都跳过了，我们就查一个月前的
 		result = info.DB.Model(&PostInfo{}).
-			Order("likes DESC,updated_at DESC").
+			Order("likes DESC,created_at DESC").
 			Limit(pageargs.PageSize).
 			Offset((pageargs.PageNum - 1) * pageargs.PageSize).
 			Find(&infos)
 	}
+	return infos, result.Error
+}
+
+// SeniorGetPostPage 优化后的分页查询，将 使用offset偏移量的方式，更改为用 where条件过滤的方式
+// 因为后发的帖子id大，所以可以根据id来进行过滤
+func (info *postInfoDao_) SeniorGetPostPage(pageargs PageArgs, lastMinPostId uint32, ok bool) (PostInfos, error) {
+	//	分页 - 时间优先，热度次之
+	infos := make(PostInfos, 0)
+	tx := info.DB.Model(&PostInfo{}) //	 不变 sql
+	if ok {
+		//  说明不是第一次查询，我们为其优化
+		tx = tx.Where("id < ?", lastMinPostId)
+	}
+	result := tx.Order("created_at DESC,likes DESC").Limit(pageargs.PageSize).Find(&infos) //	 不变 sql
 	return infos, result.Error
 }
 
@@ -161,21 +176,19 @@ func (util *postInfoUtil_) CheckPostBase(post PostInfo) *common.NormalErr {
 	return nil
 }
 
-func (util *postInfoUtil_) CheckPage(pagenum string, pagesize string) (pageNum int, pageSize int, retErr *common.NormalErr) {
-
-	fmt.Println(pagenum)
-	fmt.Println(pagesize)
-
+func (util *postInfoUtil_) CheckPage(pagenum string, pagesize string) (page PageArgs, retErr *common.NormalErr) {
 	var err error
+	var pageNum, pageSize int
+
 	pageNum, err = strconv.Atoi(pagenum)
 	if pagenum == "" || err != nil || pageNum < 1 {
-		return -1, -1, &definition.PageNumNotFormat
+		return PageArgs{-1, -1}, &definition.PageNumNotFormat
 	}
 	pageSize, err = strconv.Atoi(pagesize)
 	if pagesize == "" || err != nil || pageSize < 0 {
-		return -1, -1, &definition.PageSizeNotFormat
+		return PageArgs{-1, -1}, &definition.PageSizeNotFormat
 	}
-	return pageNum, pageSize, nil
+	return PageArgs{pageNum, pageSize}, nil
 }
 
 func (util *postInfoUtil_) TransToDto(info PostInfo) dto.PostInfoDto {
@@ -185,9 +198,25 @@ func (util *postInfoUtil_) TransToDto(info PostInfo) dto.PostInfoDto {
 		TopicTag:      info.TopicTag,
 		Body:          info.Body,
 		PublisherName: info.PublisherName,
-		PublishTime:   info.UpdatedAt,
+		PublishTime:   info.CreatedAt,
 		Likes:         info.Likes,
+		Comments:      info.Comments,
+		Favorites:     info.Favorites,
 		ReviewStatus:  info.ReviewStatus,
 		Reason:        info.Reason,
 	}
+}
+
+// CheckLmid 检查 lmid参数是否可以开启优化， 返回值-整型lmid，是否开启  --  默认为不开启
+func (util *postInfoUtil_) CheckLmid(lmid string) (uint32, bool) {
+	id, err := strconv.Atoi(lmid)
+	if lmid == "" || err != nil {
+		return 0, false
+	}
+	//	进行类型转换
+	lastMinPostId := uint32(id)
+	if int(lastMinPostId) != id {
+		return 0, false
+	}
+	return lastMinPostId, true
 }

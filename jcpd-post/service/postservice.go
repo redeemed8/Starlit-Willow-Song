@@ -91,9 +91,9 @@ func (h *PostHandler) Publish(ctx *gin.Context) {
 	ctx.JSON(200, resp.Success(m))
 }
 
-// GetPostSummary 获取帖子简介 - 指定 页码 数量 (最小页码为1) - 根据点赞热度排序
+// GetPostSummaryHot 获取帖子简介 - 指定 页码(最小页码为1) 每页数量 - 优先点赞热度排序
 // api : /posts/get/summary/hot?pagenum=xxx&size=xxx  [get]
-func (h *PostHandler) GetPostSummary(ctx *gin.Context) {
+func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
 	normalErr, _ := IsLogin(ctx, resp)
@@ -104,17 +104,48 @@ func (h *PostHandler) GetPostSummary(ctx *gin.Context) {
 	pagenum := ctx.Query("pagenum")
 	pagesize := ctx.Query("size")
 	//	3. 校验路径参数
-	pageNum, pageSize, err := models.PostInfoUtil.CheckPage(pagenum, pagesize)
+	page, err := models.PostInfoUtil.CheckPage(pagenum, pagesize)
 	if err != nil {
 		ctx.JSON(http.StatusOK, resp.Fail(*err))
 		return
 	}
 	//	4. 分页查询
-	postInfos, err1 := models.PostInfoDao.SimpleGetPostsPage(models.PageArgs{PageSize: pageSize, PageNum: pageNum})
+	postInfos, err1 := models.PostInfoDao.SimpleGetPostsPage(page)
 	if h.errs.CheckMysqlErr(err1) {
 		constants.MysqlErr("分页查询帖子信息出错", err1)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
 	ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
+}
+
+// GetPostSummaryTime 获取帖子简介 - 指定 每页数量 以及 上次分页中的的最小id - 优先发布时间排序
+// api : /posts/get/summary/time?size=xxx&lmid=  [get]
+// args_explain : 如果是第一次分页查询，参数传空即可，如果lmid参数错误，将默认为不开启优化
+func (h *PostHandler) GetPostSummaryTime(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, _ := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+
+	//	2. 获取路径参数
+	pagesize := ctx.Query("size")
+	lmid := ctx.Query("lmid")
+	//	3. 校验路径参数
+	page, err := models.PostInfoUtil.CheckPage("10", pagesize)
+	if err != nil {
+		ctx.JSON(http.StatusOK, resp.Fail(*err))
+		return
+	}
+	lastMinPostId, ok := models.PostInfoUtil.CheckLmid(lmid)
+	//	4. 分页查询
+	infos, err2 := models.PostInfoDao.SeniorGetPostPage(page, lastMinPostId, ok)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("优化分页查询帖子信息出错", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success(infos.ToDtos()))
 }

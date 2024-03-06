@@ -10,6 +10,8 @@ type PostInfoDto struct {
 	PublisherName string    `json:"publisher_name"` //	发布人用户名
 	PublishTime   time.Time `json:"publish_time"`   //	帖子发布时间
 	Likes         int       `json:"likes"`          //	点赞数 - 热度
+	Comments      int       `json:"comments"`       //	评论数
+	Favorites     int       `json:"favorites"`      //	收藏数
 	ReviewStatus  string    `json:"review_status"`  //	审核状态, 0-未审核，1-已通过，2-已驳回
 	Reason        string    `json:"reason"`         //	驳回原因 -- 保存3天
 }
