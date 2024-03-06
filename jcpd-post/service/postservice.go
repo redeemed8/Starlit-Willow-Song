@@ -91,7 +91,7 @@ func (h *PostHandler) Publish(ctx *gin.Context) {
 	ctx.JSON(200, resp.Success(m))
 }
 
-// GetPostSummaryHot 获取帖子简介 - 指定 页码(最小页码为1) 每页数量 - 优先点赞热度排序
+// GetPostSummaryHot 获取帖子简介 - 指定 页码(最小页码为1) 每页数量 - 优先点赞热度排序 + redis缓存优化
 // api : /posts/get/summary/hot?pagenum=xxx&size=xxx  [get]
 func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	resp := common.NewResp()

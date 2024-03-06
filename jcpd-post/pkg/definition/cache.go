@@ -3,7 +3,9 @@ package definition
 import (
 	"context"
 	"github.com/go-redis/redis/v8"
+	"jcpd.cn/post/internal/constants"
 	"jcpd.cn/post/internal/options"
+	"log"
 	"time"
 )
 
@@ -53,4 +55,36 @@ func (Rc *RedisCache) Get(key string) (string, error) {
 	defer cancel()
 	result, err := Rc.rdb.Get(ctx, key).Result()
 	return result, err
+}
+
+func (Rc *RedisCache) HashPut(key, field, value string, expire time.Duration) error {
+	Init()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	//	使用管道发送多条命令，减少 网络I/O 和 服务器负载，而且是原子性操作，支持事务
+	pipe := Rc.rdb.TxPipeline()
+
+	//	塞入命令
+	pipe.HSet(ctx, key, field, value) //	存值
+	pipe.Expire(ctx, key, expire)     //	过期时间
+
+	//	事务执行管道命令
+	_, err := pipe.Exec(context.Background())
+	if err != nil {
+		log.Println(constants.Err("redis事务执行出错-hash缓存出错-err = " + err.Error()))
+		return err
+	}
+	return nil
+}
+
+func (Rc *RedisCache) HashGet(key, field string) (string, error) {
+	Init()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	//  获取 hash值
+	value, err := Rc.rdb.HGet(ctx, key, field).Result()
+
+	return value, err
 }
