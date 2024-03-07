@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	common "jcpd.cn/common/models"
 	commonJWT "jcpd.cn/common/utils/jwt"
 	"jcpd.cn/post/internal/constants"
 	"jcpd.cn/post/internal/models"
 	"jcpd.cn/post/internal/models/vo"
 	"jcpd.cn/post/pkg/definition"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
@@ -88,7 +90,10 @@ func (h *PostHandler) Publish(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
-	m := map[string]string{"post_id": strconv.Itoa(int(postInfo.Id)), "ret_msg": "帖子已提交，等待审核通过后即可发布"}
+	id := strconv.Itoa(int(postInfo.Id))
+	m := map[string]string{"post_id": id, "ret_msg": "帖子已提交，等待审核通过后即可发布"}
+	//	5. 添加到布隆过滤器中
+	models.BloomFilters.Add(postInfo.Id)
 	ctx.JSON(200, resp.Success(m))
 }
 
@@ -189,7 +194,7 @@ func (h *PostHandler) GetPostSummaryTime(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, resp.Success(infos.ToDtos()))
 }
 
-// GetPostDetails 根据id ，获取帖子详细内容
+// GetPostDetails 根据id ，获取帖子详细内容 + redis 缓存
 // api : /posts/get/detail?postid=xxx
 func (h *PostHandler) GetPostDetails(ctx *gin.Context) {
 	resp := common.NewResp()
@@ -205,18 +210,61 @@ func (h *PostHandler) GetPostDetails(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(*err1))
 		return
 	}
-	//	3. 查数据库 id
-	queryPost, err2 := models.PostInfoDao.GetPostById(postId)
-	if h.errs.CheckMysqlErr(err2) {
-		constants.MysqlErr("根据id获取活动信息失败", err2)
+	//	3. 访问布隆过滤器，不存在则一定不存在，防止缓存穿透
+	if exist := models.BloomFilters.Exist(postId); !exist {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PostNotFound))
+		return
+	}
+	//	4. 访问redis缓存
+	cachePostBody, err2 := h.cache.Get(constants.PostBodyPrefix + postIdStr)
+	if h.errs.CheckRedisErr(err2) {
+		constants.RedisErr("获取帖子内容缓存出错,", err2)
+		//	TODO 降级处理
+	}
+	if cachePostBody == models.SpecialSymbol { //	相当于 空值 nil
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PostNotFound))
+		return
+	}
+	if err2 == nil && cachePostBody != "" {
+		//	缓存命中, 直接返回
+		ctx.JSON(http.StatusOK, resp.Success(cachePostBody))
+		return
+	}
+	//	5. 缓存未命中 ,查数据库 id，先尝试获取分布式锁，防止因并发过大导致重复的缓存建立
+	lockKey := constants.PostBodyLockPrefix + postIdStr
+	err7 := h.cache.SetNX(lockKey, "1")
+	if h.errs.CheckRedisErr(err7) {
+		constants.RedisErr("创建post内容缓存时，获取分布式锁失败", err7)
+		//	 TODO 要是redis宕机就只能限流了。。。
+	}
+	if err7 == redis.Nil {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.DataLoading)) //	没抢到锁，先返回一会再刷新重试
+		return
+	}
+	//	6. 抢到锁了，进行数据库查询
+	queryPost, err3 := models.PostInfoDao.GetPostById(postId)
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("根据id获取活动信息失败", err3)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
 	if queryPost.PublisherName == "" {
+		//	7.如果数据库中也不存在，说明布隆过滤器出错，所以我们要在redis中存一个标记
+		err8 := h.cache.Put(constants.PostBodyPrefix+postIdStr, models.SpecialSymbol, 10*time.Minute)
+		if err8 != nil {
+			constants.RedisErr("为不存在的id设置redis缓存失败", err8)
+		}
 		ctx.JSON(http.StatusOK, resp.Fail(definition.PostNotFound))
 		return
 	}
+	//	8. 数据库中存在，建立redis缓存
+	cacheTime := time.Duration(30 + rand.Intn(11)) //	设置随机数，防止同时失效导致缓存雪崩
+	err4 := h.cache.Put(constants.PostBodyPrefix+postIdStr, queryPost.Body, cacheTime*time.Minute)
+	if err4 != nil {
+		constants.RedisErr("为帖子内容设置redis缓存失败", err4)
+		//	TODO 降级处理
+	}
+	//	9. 释放分布式锁
+	_ = h.cache.Delete(lockKey)
 	ctx.JSON(http.StatusOK, resp.Success(queryPost.Body))
 }
-
-//	点赞 ... 另起一个文件

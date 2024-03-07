@@ -52,6 +52,14 @@ func (info *postInfoDao_) CreateTable() {
 	_ = info.DB.AutoMigrate(&PostInfo{})
 }
 
+// GetAllIds 获取所有帖子 id
+func (info *postInfoDao_) GetAllIds() ([]uint32, error) {
+	var ids = make([]uint32, 0)
+	sql_ := "select id from" + " " + PostInfoTN
+	result := info.DB.Raw(sql_).Scan(&ids)
+	return ids, result.Error
+}
+
 // CreatePost 创建帖子信息
 func (info *postInfoDao_) CreatePost(post *PostInfo) error {
 	return info.DB.Model(&PostInfo{}).Create(post).Error
@@ -189,8 +197,13 @@ func (util *postInfoUtil_) CheckPostTopicTag(topicTag string) bool {
 	return true
 }
 
+const SpecialSymbol = "^"
+
 // CheckPostBody 检查帖子内容
 func (util *postInfoUtil_) CheckPostBody(body string) bool {
+	if body == SpecialSymbol {
+		return false
+	}
 	if body == "" || len(body) > BodyWordCount*3 {
 		return false
 	}

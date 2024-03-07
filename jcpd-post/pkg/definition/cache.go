@@ -14,6 +14,9 @@ type Cache interface {
 
 	HashMultiPut(string, map[string]string, time.Duration) (error, string)
 	HashMultiGet(string) (map[string]string, error, string)
+
+	SetNX(key, value string) error
+	Delete(string) error
 }
 
 type CacheType string
@@ -92,4 +95,24 @@ func (Rc *RedisCache) HashMultiGet(key string) (map[string]string, error, string
 	}
 
 	return result, err, ""
+}
+
+func (Rc *RedisCache) SetNX(key, value string) error {
+	Init()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := Rc.rdb.SetNX(ctx, key, value, 15).Result() //	不设置为永不过期，防止刚设置锁就宕机导致的死锁
+
+	return err //	没抢到锁会返回 redis.Nil
+}
+
+func (Rc *RedisCache) Delete(key string) error {
+	Init()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := Rc.rdb.Del(ctx, key).Result()
+
+	return err
 }

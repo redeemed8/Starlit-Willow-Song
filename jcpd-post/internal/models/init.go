@@ -10,6 +10,8 @@ func InitPost() {
 	newDao()
 	//	初始化mysql表
 	createTables()
+	//	初始化布隆过滤器
+	initBloomFilters()
 }
 
 func newDao() {
