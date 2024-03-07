@@ -2,16 +2,18 @@ package definition
 
 import (
 	"context"
+	"errors"
 	"github.com/go-redis/redis/v8"
-	"jcpd.cn/post/internal/constants"
 	"jcpd.cn/post/internal/options"
-	"log"
 	"time"
 )
 
 type Cache interface {
 	Put(key, value string, expire time.Duration) error
 	Get(key string) (string, error)
+
+	HashMultiPut(string, map[string]string, time.Duration) (error, string)
+	HashMultiGet(string) (map[string]string, error, string)
 }
 
 type CacheType string
@@ -57,7 +59,7 @@ func (Rc *RedisCache) Get(key string) (string, error) {
 	return result, err
 }
 
-func (Rc *RedisCache) HashPut(key, field, value string, expire time.Duration) error {
+func (Rc *RedisCache) HashMultiPut(key string, FV map[string]string, expire time.Duration) (error, string) {
 	Init()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -66,25 +68,28 @@ func (Rc *RedisCache) HashPut(key, field, value string, expire time.Duration) er
 	pipe := Rc.rdb.TxPipeline()
 
 	//	塞入命令
-	pipe.HSet(ctx, key, field, value) //	存值
-	pipe.Expire(ctx, key, expire)     //	过期时间
+	pipe.HMSet(ctx, key, FV)      //	存值
+	pipe.Expire(ctx, key, expire) //	过期时间
 
 	//	事务执行管道命令
 	_, err := pipe.Exec(context.Background())
-	if err != nil {
-		log.Println(constants.Err("redis事务执行出错-hash缓存出错-err = " + err.Error()))
-		return err
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return err, "redis事务执行出错-hash缓存出错"
 	}
-	return nil
+	return nil, ""
 }
 
-func (Rc *RedisCache) HashGet(key, field string) (string, error) {
+func (Rc *RedisCache) HashMultiGet(key string) (map[string]string, error, string) {
 	Init()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	//  获取 hash值
-	value, err := Rc.rdb.HGet(ctx, key, field).Result()
+	result, err := Rc.rdb.HGetAll(ctx, key).Result()
 
-	return value, err
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return make(map[string]string), err, "redis事务执行出错-获取hash表的field和value出错"
+	}
+
+	return result, err, ""
 }

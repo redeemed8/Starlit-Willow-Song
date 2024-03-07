@@ -2,11 +2,13 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"gorm.io/gorm"
 	common "jcpd.cn/common/models"
 	"jcpd.cn/post/internal/models/dto"
 	"jcpd.cn/post/internal/options"
 	"jcpd.cn/post/pkg/definition"
+	"jcpd.cn/post/utils"
 	"strconv"
 	"time"
 )
@@ -53,6 +55,14 @@ func (info *postInfoDao_) CreateTable() {
 // CreatePost 创建帖子信息
 func (info *postInfoDao_) CreatePost(post *PostInfo) error {
 	return info.DB.Model(&PostInfo{}).Create(post).Error
+}
+
+// GetPostsByIds 使用 in 进行批量获取
+func (info *postInfoDao_) GetPostsByIds(ids string) (PostInfos, error) {
+	infos := make(PostInfos, 0)
+	sql_ := "select * from" + " " + PostInfoTN + " where id in (" + ids + ") order by likes DESC,created_at DESC"
+	err := info.DB.Raw(sql_).Scan(&infos).Error
+	return infos, err
 }
 
 // SimpleGetPostsPage 简单的分页查询，仅用了联合索引对排序列进行了优化
@@ -130,6 +140,17 @@ func (infos *PostInfos) ToDtos() []dto.PostInfoDto {
 	return dtos
 }
 
+func (infos *PostInfos) ToIdStr() string {
+	if infos.size() == 0 {
+		return ""
+	}
+	var ids = ""
+	for _, info := range *infos {
+		ids += fmt.Sprintf("%d,", info.Id)
+	}
+	return ids[:len(ids)-1]
+}
+
 // --------------------------------------------------
 
 const (
@@ -192,11 +213,12 @@ func (util *postInfoUtil_) CheckPage(pagenum string, pagesize string) (page Page
 }
 
 func (util *postInfoUtil_) TransToDto(info PostInfo) dto.PostInfoDto {
+
 	return dto.PostInfoDto{
 		Id:            info.Id,
 		Title:         info.Title,
 		TopicTag:      info.TopicTag,
-		Body:          info.Body,
+		Body:          utils.SimplifyPostBody(info.Body),
 		PublisherName: info.PublisherName,
 		PublishTime:   info.CreatedAt,
 		Likes:         info.Likes,
@@ -219,4 +241,9 @@ func (util *postInfoUtil_) CheckLmid(lmid string) (uint32, bool) {
 		return 0, false
 	}
 	return lastMinPostId, true
+}
+
+// ToStringMap 将 postinfo转换为 string-string的map
+func (post *PostInfo) ToStringMap() map[string]string {
+	return utils.StructToMapStrStr(*post)
 }

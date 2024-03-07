@@ -12,6 +12,7 @@ import (
 	"jcpd.cn/post/pkg/definition"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 // PostHandler post路由的处理器 -- 用于管理各种接口的实现
@@ -91,7 +92,9 @@ func (h *PostHandler) Publish(ctx *gin.Context) {
 	ctx.JSON(200, resp.Success(m))
 }
 
-// GetPostSummaryHot 获取帖子简介 - 指定 页码(最小页码为1) 每页数量 - 优先点赞热度排序 + redis缓存优化
+const HotPostSummary = "hot-post-summary"
+
+// GetPostSummaryHot 获取帖子简介 - 指定 页码(最小页码为1) 每页数量(<50) - 优先点赞热度排序 + redis缓存id
 // api : /posts/get/summary/hot?pagenum=xxx&size=xxx  [get]
 func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	resp := common.NewResp()
@@ -104,18 +107,57 @@ func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	pagenum := ctx.Query("pagenum")
 	pagesize := ctx.Query("size")
 	//	3. 校验路径参数
-	page, err := models.PostInfoUtil.CheckPage(pagenum, pagesize)
-	if err != nil {
-		ctx.JSON(http.StatusOK, resp.Fail(*err))
+	page, err1 := models.PostInfoUtil.CheckPage(pagenum, pagesize)
+	if err1 != nil {
+		ctx.JSON(http.StatusOK, resp.Fail(*err1))
 		return
 	}
-	//	4. 分页查询
-	postInfos, err1 := models.PostInfoDao.SimpleGetPostsPage(page)
-	if h.errs.CheckMysqlErr(err1) {
-		constants.MysqlErr("分页查询帖子信息出错", err1)
+	var postInfos = make(models.PostInfos, 0)
+	var err99 error
+	//	4. 判断是否查询的是热点页 ， 也就是第一页
+	if page.PageNum > 1 {
+		//	不是热点页，没有缓存，直接查询。
+		postInfos, err99 = models.PostInfoDao.SimpleGetPostsPage(page)
+		if h.errs.CheckMysqlErr(err99) {
+			constants.MysqlErr("分页查询帖子信息出错", err99)
+			ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+			return
+		}
+		ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
+		return
+	}
+	//	5. 如果查询的是热点页，先查 redis的缓存
+	idsStr, err2 := h.cache.Get(HotPostSummary)
+	if h.errs.CheckRedisErr(err2) {
+		//  说明查询缓存出错，有可能是redis宕机了，此处开启异常处理，但不结束流程
+		constants.RedisErr("获取redis缓存帖子id出错", err2)
+		//	TODO  此处 还应该进行 服务降级处理 -- 减少访问到达量
+	}
+	//	6. 如果缓存命中, 简单查询后返回
+	if err2 == nil && idsStr != "" {
+		postInfos, err99 = models.PostInfoDao.GetPostsByIds(idsStr)
+		if h.errs.CheckMysqlErr(err99) {
+			constants.MysqlErr("分页查询帖子信息出错", err99)
+			ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+			return
+		}
+		ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
+		return
+	}
+	//	7. 如果缓存没有命中，只能查数据库了
+	postInfos, err99 = models.PostInfoDao.SimpleGetPostsPage(page)
+	if h.errs.CheckMysqlErr(err99) {
+		constants.MysqlErr("分页查询帖子信息出错", err99)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
+	//	8. 将查到的记录 添加到 redis
+	err8 := h.cache.Put(HotPostSummary, postInfos.ToIdStr(), 90*time.Minute)
+	if h.errs.CheckRedisErr(err8) {
+		constants.RedisErr("获取redis缓存帖子id出错", err8)
+		//	TODO  此处 还应该进行 服务降级处理 -- 减少访问到达量
+	}
+	//	9 返回帖子简述
 	ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
 }
 
