@@ -57,8 +57,22 @@ func (info *postInfoDao_) CreatePost(post *PostInfo) error {
 	return info.DB.Model(&PostInfo{}).Create(post).Error
 }
 
-// GetPostsByIds 使用 in 进行批量获取
-func (info *postInfoDao_) GetPostsByIds(ids string) (PostInfos, error) {
+// GetPostById 根据id获取单条
+func (info *postInfoDao_) GetPostById(id uint32) (PostInfo, error) {
+	var post PostInfo
+	result := info.DB.Model(&PostInfo{}).Where("id = ?", id).First(&post)
+	return post, result.Error
+}
+
+// GetPostsByIds 批量获取
+func (info *postInfoDao_) GetPostsByIds(ids []uint32) (PostInfos, error) {
+	var posts = make(PostInfos, 0)
+	result := info.DB.Model(&PostInfo{}).Where("id in ?", ids).Find(&posts)
+	return posts, result.Error
+}
+
+// GetPostsInIds 使用 in 进行批量获取
+func (info *postInfoDao_) GetPostsInIds(ids string) (PostInfos, error) {
 	infos := make(PostInfos, 0)
 	sql_ := "select * from" + " " + PostInfoTN + " where id in (" + ids + ") order by likes DESC,created_at DESC"
 	err := info.DB.Raw(sql_).Scan(&infos).Error
@@ -195,6 +209,14 @@ func (util *postInfoUtil_) CheckPostBase(post PostInfo) *common.NormalErr {
 		return &definition.PostBodyNotFormat
 	}
 	return nil
+}
+
+func (util *postInfoUtil_) CheckPostIdStr(idStr string) (uint32, *common.NormalErr) {
+	id, err := strconv.Atoi(idStr)
+	if idStr == "" || err != nil || id < 1 {
+		return 0, &definition.PostNotFound
+	}
+	return uint32(id), nil
 }
 
 func (util *postInfoUtil_) CheckPage(pagenum string, pagesize string) (page PageArgs, retErr *common.NormalErr) {
