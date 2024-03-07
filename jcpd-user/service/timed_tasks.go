@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 	"jcpd.cn/user/internal/constants"
 	"jcpd.cn/user/internal/models"
+	"jcpd.cn/user/utils"
 	"log"
 	"time"
 )
@@ -53,12 +54,14 @@ func (myTimer *myTimer) makeTimerByHour(hour int) {
 	myTimer.Hour = hour
 }
 
-type TaskFunc func()
+type TaskFunc func(*myTimer)
 
 // fillDealFunc 装填处理函数
 func (myTimer *myTimer) fillDealFunc(taskfunc TaskFunc) {
 	myTimer.TaskFunc = taskfunc
 }
+
+//	----------------------------------
 
 const cleanApplyHour = 12
 const cleanApplySign = "clean_apply"
@@ -67,18 +70,22 @@ const cleanApplySign = "clean_apply"
 func cleanUsedApply() {
 	var myTimer_ myTimer
 	myTimer_.makeTimerByHour(cleanApplyHour)
-	taskFunc := TaskFunc(func() {
+	taskFunc := TaskFunc(func(t *myTimer) {
 		// 清理一些已经通过或拒绝了的申请
 		err := models.JoinApplyDao.DeleteApplyByNotStatus(models.JoinApplyUtil.GetPendStatus())
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			constants.MysqlErr("删除过期apply过程出错", err)
 		}
+		//	重置定时器
+		t.makeTimerByHour(cleanApplyHour)
 	})
 	myTimer_.fillDealFunc(taskFunc)
 	//	加入到定时任务列表
 	TimerTasks.putTimer(cleanApplySign, myTimer_)
 	log.Println(constants.Hint("定时任务:清理已审核的申请信息  --  状态：已开启"))
 }
+
+//	----------------------------------
 
 const cleanGroupHour = 3
 const cleanGroupSign = "clean_group"
@@ -87,15 +94,42 @@ const cleanGroupSign = "clean_group"
 func cleanDeletedGroup() {
 	var myTimer_ myTimer
 	myTimer_.makeTimerByHour(cleanGroupHour)
-	taskFunc := TaskFunc(func() {
+	taskFunc := TaskFunc(func(t *myTimer) {
 		// 删除已被解散的群聊，并且从用户的群列表中删除
 
+		//	获取所有已解散的群
+		groups, err1 := models.GroupInfoDao.GetGroupsByMap(map[string]interface{}{"status": models.GroupDeleted})
+		if err1 != nil {
+			log.Println(constants.Hint("获取已删除的群聊失败,err = " + err1.Error()))
+			return
+		}
+
+		//	在用户群列表中删除
+		for _, group := range groups {
+			err2 := models.UserInfoDao.GroupListUpdates(group.Id, utils.ParseListToUint(group.MemberIds))
+			if err2 != nil {
+				log.Println(constants.Hint("在用户群列表中删除群id出错,err = " + err2.Error()))
+				return
+			}
+		}
+
+		//	删除群
+		err3 := models.GroupInfoDao.DeleteGroupById(groups.Ids())
+		if err3 != nil {
+			log.Println(constants.Hint("删除群信息失败,err = " + err3.Error()))
+			return
+		}
+
+		//	重置定时器
+		t.makeTimerByHour(cleanApplyHour)
 	})
 	myTimer_.fillDealFunc(taskFunc)
 	//	加入到定时任务列表
 	TimerTasks.putTimer(cleanGroupSign, myTimer_)
 	log.Println(constants.Hint("定时任务:清理已被解散的群聊  --  状态：已开启"))
 }
+
+//	----------------------------------
 
 // Start 开启定时任务
 func (tasks *timerTasks_) Start() {
@@ -104,9 +138,11 @@ func (tasks *timerTasks_) Start() {
 		for {
 			select {
 			case <-tasks.myTimers[cleanApplySign].Timer.C:
-				tasks.myTimers[cleanApplySign].TaskFunc()
+				timer := tasks.myTimers[cleanApplySign]
+				tasks.myTimers[cleanApplySign].TaskFunc(&timer)
 			case <-tasks.myTimers[cleanGroupSign].Timer.C:
-				tasks.myTimers[cleanGroupSign].TaskFunc()
+				timer := tasks.myTimers[cleanGroupSign]
+				tasks.myTimers[cleanGroupSign].TaskFunc(&timer)
 			}
 		}
 	}()

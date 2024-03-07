@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/gin-gonic/gin"
 	"jcpd.cn/post/internal/models"
+	"jcpd.cn/post/service"
 )
 
 // Router 路由接口
@@ -22,7 +23,7 @@ func InitRouter(r *gin.Engine) {
 		ro.Router(r)
 	}
 	//	开启定时任务
-
+	service.TimerTasks.Start()
 }
 
 // Register	用于注册路由

@@ -63,6 +63,13 @@ func (info *GroupInfoDao_) GetGroupInfoById(id uint32) (GroupInfo, error) {
 	return group, result.Error
 }
 
+// GetGroupsByMap 根据指定条件获取
+func (info *GroupInfoDao_) GetGroupsByMap(condition map[string]interface{}) (GroupInfos, error) {
+	infos := make(GroupInfos, 0)
+	result := info.DB.Model(&GroupInfo{}).Where(condition).Find(&infos)
+	return infos, result.Error
+}
+
 // GetGroupsByIds 根据id批量查询群信息
 func (info *GroupInfoDao_) GetGroupsByIds(ids []uint32) (GroupInfos, error) {
 	var infos GroupInfos
@@ -88,8 +95,13 @@ func (info *GroupInfoDao_) UpdateGroupByMap(id uint32, columnMap map[string]inte
 }
 
 // DeleteGroupById 根据id删除群信息
-func (info *GroupInfoDao_) DeleteGroupById(id uint32) error {
-	return info.DB.Model(&GroupInfo{}).Where("id = ?", id).Delete(&GroupInfo{}).Error
+func (info *GroupInfoDao_) DeleteGroupById(ids []uint32) error {
+	return info.DB.Model(&GroupInfo{}).Where("id in ?", ids).Delete(&GroupInfo{}).Error
+}
+
+// DeleteGroupByMap 根据 指定字段 删除群信息
+func (info *GroupInfoDao_) DeleteGroupByMap(condition map[string]interface{}) error {
+	return info.DB.Model(&GroupInfo{}).Where(condition).Delete(&GroupInfo{}).Error
 }
 
 // ----------------------------------
@@ -105,6 +117,16 @@ func (groups *GroupInfos) Names() []string {
 		}
 	}
 	return names
+}
+
+func (groups *GroupInfos) Ids() []uint32 {
+	var ids []uint32
+	for _, group := range *groups {
+		if group.GroupName != "" {
+			ids = append(ids, group.Id)
+		}
+	}
+	return ids
 }
 
 // RemoveDeleted 排除所有已被删除的
