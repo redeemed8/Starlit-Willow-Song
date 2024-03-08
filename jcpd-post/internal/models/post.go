@@ -72,6 +72,20 @@ func (info *postInfoDao_) GetPostById(id uint32) (PostInfo, error) {
 	return post, result.Error
 }
 
+// GetPostOwnerById 根据id获取发布人id
+func (info *postInfoDao_) GetPostOwnerById(id uint32) (uint32, error) {
+	var ownerId uint32
+	result := info.DB.Model(&PostInfo{}).Select("publisher_id").Where("id = ?", id).First(&ownerId)
+	return ownerId, result.Error
+}
+
+// GetPostByMap 根据 指定字段获取该帖子
+func (info *postInfoDao_) GetPostByMap(condition map[string]interface{}) (PostInfo, error) {
+	var post PostInfo
+	result := info.DB.Model(&PostInfo{}).Where(condition).First(&post)
+	return post, result.Error
+}
+
 // GetPostsByIds 批量获取
 func (info *postInfoDao_) GetPostsByIds(ids []uint32) (PostInfos, error) {
 	var posts = make(PostInfos, 0)
@@ -122,6 +136,16 @@ func (info *postInfoDao_) SeniorGetPostPage(pageargs PageArgs, lastMinPostId uin
 	}
 	result := tx.Order("created_at DESC,likes DESC").Limit(pageargs.PageSize).Find(&infos) //	 不变 sql
 	return infos, result.Error
+}
+
+// UpdatePostByInfo 根据 PostInfo 结构体来更新字段
+func (info *postInfoDao_) UpdatePostByInfo(postId uint32, postInfo PostInfo) error {
+	return info.DB.Model(&PostInfo{}).Where("id = ?", postId).Updates(postInfo).Error
+}
+
+// DeletePostById  根据id删除帖子信息
+func (info *postInfoDao_) DeletePostById(postId uint32) error {
+	return info.DB.Model(&PostInfo{}).Where("id = ?", postId).Delete(&PostInfo{}).Error
 }
 
 // --------------------------------------------------
@@ -281,4 +305,30 @@ func (util *postInfoUtil_) CheckLmid(lmid string) (uint32, bool) {
 // ToStringMap 将 postinfo转换为 string-string的map
 func (post *PostInfo) ToStringMap() map[string]string {
 	return utils.StructToMapStrStr(*post)
+}
+
+// MakePostInfo  用 title, topicTag, body 组织一篇帖子信息
+func (util *postInfoUtil_) MakePostInfo(title, topicTag, body string) (PostInfo, *common.NormalErr) {
+	var info PostInfo
+
+	if title != "" { //	有标题
+		if ok := util.CheckPostTitle(title); !ok { //	标题不合规
+			return info, &definition.PostTitleNotFormat
+		}
+		info.Title = title
+	}
+	if topicTag != "" {
+		if ok := util.CheckPostTopicTag(topicTag); !ok {
+			return info, &definition.PostTopicNotFormat
+		}
+		info.TopicTag = topicTag
+	}
+	if body != "" {
+		if ok := util.CheckPostBody(body); !ok {
+			return info, &definition.PostBodyNotFormat
+		}
+		info.Body = body
+	}
+
+	return info, nil
 }

@@ -9,6 +9,7 @@ type postVo struct {
 	PublishPostVo publishPostVo
 	UpdatePostVo  updatePostVo
 	DeletePostVo  deletePostVo
+	ReviewPostVo  reviewPostVo
 }
 
 func (*postVoHelper_) NewPostVo() *postVo {
@@ -22,6 +23,7 @@ type publishPostVo struct {
 }
 
 type updatePostVo struct {
+	PostId   uint32 `json:"post_id"`
 	Title    string `json:"title"`
 	TopicTag string `json:"topic"`
 	Body     string `json:"body"`

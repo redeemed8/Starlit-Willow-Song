@@ -3,7 +3,6 @@ package models
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"github.com/willf/bloom"
 	"gorm.io/gorm"
 	"jcpd.cn/post/internal/constants"
@@ -34,7 +33,7 @@ func initBloomFilters() {
 	}
 
 	//	 将数据库中的id 初始化加载到布隆过滤器组
-	fmt.Printf(constants.Hint("布隆过滤器加载中ing..."))
+	log.Println(constants.Hint("布隆过滤器加载中ing..."))
 	ids, err := PostInfoDao.GetAllIds()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		constants.MysqlErr("获取所有帖子id出错", err)
@@ -42,7 +41,7 @@ func initBloomFilters() {
 		return
 	}
 	BloomFilters.AddInBatches(ids)
-	fmt.Println(constants.Info("布隆过滤器加载完成..."))
+	log.Println(constants.Info("布隆过滤器加载完成..."))
 }
 
 // 	-----------------------------------------------------------------

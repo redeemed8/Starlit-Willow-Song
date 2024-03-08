@@ -27,9 +27,9 @@ func (*RouterPost) Router(r *gin.Engine) {
 		postserviceGroup.GET("/get/summary/hot", handler.GetPostSummaryHot)
 		postserviceGroup.GET("/get/summary/time", handler.GetPostSummaryTime)
 		postserviceGroup.GET("/get/detail", handler.GetPostDetails)
-		postserviceGroup.GET("/updates/info", handler.UpdatePost)
-		postserviceGroup.GET("/delete/one", handler.DeletePost)
+		postserviceGroup.POST("/updates/info", handler.UpdatePost)
+		postserviceGroup.POST("/delete/one", handler.DeletePost)
 		postserviceGroup.GET("/getinfo/not-reviewed", handler.GetNotReviewedPost)
-		postserviceGroup.GET("/review", handler.ReviewPost)
+		postserviceGroup.POST("/review", handler.ReviewPost)
 	}
 }
