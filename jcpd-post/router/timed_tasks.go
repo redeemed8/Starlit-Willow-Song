@@ -1,4 +1,4 @@
-package service
+package router
 
 import (
 	"jcpd.cn/post/internal/constants"
@@ -33,12 +33,12 @@ func (tasks *timerTasks_) putTimer(timerSign string, timer myTimer) {
 
 // myTimer 定时器 - 定时任务
 type myTimer struct {
-	Timer    *time.Timer
+	Timer    *time.Ticker
 	TaskFunc TaskFunc
 	Hour     int
 }
 
-// makeTimerByHour 根据小时创建定时器
+// makeTimerByHour 根据小时创建定时器 - 每天的指定时间执行
 func (myTimer *myTimer) makeTimerByHour(hour int) {
 	curTimePeriod := time.Now()
 	nextTimePeriod := time.Date(curTimePeriod.Year(), curTimePeriod.Month(), curTimePeriod.Day(), hour, 0, 0, 0, curTimePeriod.Location())
@@ -46,11 +46,14 @@ func (myTimer *myTimer) makeTimerByHour(hour int) {
 		nextTimePeriod = nextTimePeriod.Add(24 * time.Hour)
 	}
 	durationUtilPeriod := nextTimePeriod.Sub(curTimePeriod)
-	myTimer.Timer = time.NewTimer(durationUtilPeriod)
+	myTimer.Timer = time.NewTicker(durationUtilPeriod)
 	myTimer.Hour = hour
 }
 
-// makeTimerInterval  创建
+// makeTimerInterval  创建一个定时器 - 间隔时间执行
+func (myTimer *myTimer) makeTimerInterval(interval time.Duration) {
+	myTimer.Timer = time.NewTicker(interval)
+}
 
 type TaskFunc func(t *myTimer)
 
@@ -61,18 +64,16 @@ func (myTimer *myTimer) fillDealFunc(taskfunc TaskFunc) {
 
 //	----------------------------------
 
-const updateHotPostHour = 1
+const updateHotPostTime = 1 * time.Minute
 const updateHotPostSign = "update_hot_post"
 
 // updateHotPost 定时任务，将 redis中的点赞数，同步到redis，同时更新热点帖子id
 func updateHotPost() {
 	var myTimer_ myTimer
-	myTimer_.makeTimerByHour(updateHotPostHour)
+	myTimer_.makeTimerInterval(updateHotPostTime)
 	taskFunc := TaskFunc(func(t *myTimer) {
 		//  定时任务，将 redis中的点赞数，同步到redis，同时更新热点帖子 id
 
-		//	重置定时器
-		t.makeTimerByHour(updateHotPostHour)
 	})
 	myTimer_.fillDealFunc(taskFunc)
 	//	加入到定时任务列表
@@ -82,16 +83,51 @@ func updateHotPost() {
 
 //	----------------------------------
 
+const Working = "working"
+const Resting = "resting"
+
+var TimeTaskSign string
+
+var TaskCloseChan = make(chan struct{}, 1)
+
+// Check  检查是否有定时任务正在执行中
+func (tasks *timerTasks_) Check() {
+	//	检查定时任务是否正在工作
+	if TimeTaskSign == Working {
+		log.Println(constants.Hint("等待定时任务结束...."))
+		for {
+			time.Sleep(25 * time.Millisecond)
+			if TimeTaskSign == Resting {
+				break
+			}
+		}
+		log.Println(constants.Info("定时任务已经结束...."))
+	}
+	//	发送停止信号
+	TaskCloseChan <- struct{}{}
+	return
+}
+
 // Start 开启定时任务
 func (tasks *timerTasks_) Start() {
 	tasks.init()
-	go func() {
-		for {
-			select {
-			case <-tasks.myTimers[updateHotPostSign].Timer.C:
-				timer := tasks.myTimers[updateHotPostSign]
-				tasks.myTimers[updateHotPostSign].TaskFunc(&timer)
+
+	time.Sleep(time.Minute)
+
+	for {
+		select {
+		case <-tasks.myTimers[updateHotPostSign].Timer.C:
+			{
+				TimeTaskSign = Working
+				tasks.myTimers[updateHotPostSign].TaskFunc(nil)
+			}
+		case <-TaskCloseChan:
+			{
+				log.Println(constants.Info("定时任务已关闭..."))
+				return
 			}
 		}
-	}()
+		TimeTaskSign = Resting
+	}
+
 }

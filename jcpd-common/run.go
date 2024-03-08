@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func Run(r *gin.Engine, addr string, srvName string, stop func()) {
+func Run(r *gin.Engine, addr string, srvName string, stops ...func()) {
 
 	srv := &http.Server{
 		Addr:    addr,
@@ -36,9 +36,11 @@ func Run(r *gin.Engine, addr string, srvName string, stop func()) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	//	关闭其余的 grpc服务
-	if stop != nil {
-		stop()
+	//	关闭其余的 服务
+	if len(stops) != 0 {
+		for _, stop := range stops {
+			stop()
+		}
 	}
 
 	if err := srv.Shutdown(ctx); err != nil {

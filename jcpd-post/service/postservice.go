@@ -61,7 +61,7 @@ func IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.
 
 // Publish 发布一篇帖子
 // api : /posts/publish  [post]
-// post
+// post_args : {"title":"xxx","topic":"xxx","body":"xxx"}  json LOGIN
 func (h *PostHandler) Publish(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
@@ -98,7 +98,7 @@ func (h *PostHandler) Publish(ctx *gin.Context) {
 }
 
 // GetPostSummaryHot 获取帖子简介 - 指定 页码(最小页码为1) 每页数量(<50) - 优先点赞热度排序 + redis缓存id
-// api : /posts/get/summary/hot?pagenum=xxx&size=xxx  [get]
+// api : /posts/get/summary/hot?pagenum=xxx&size=xxx  [get]  LOGIN
 func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
@@ -147,25 +147,37 @@ func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
 		return
 	}
-	//	7. 如果缓存没有命中，只能查数据库了
+	//	7. 如果缓存没有命中，只能 尝试获取分布式锁
+	lockKey := constants.HotPostSummaryLockPrefix + pagenum
+	err7 := h.cache.SetNX(lockKey, "1")
+	if h.errs.CheckRedisErr(err7) {
+		constants.RedisErr("创建post内容缓存时，获取分布式锁失败", err7)
+		//	 TODO 要是redis宕机就只能限流了。。。
+	}
+	if err7 == redis.Nil {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.DataLoading)) //	没抢到锁，先返回一会再刷新重试
+		return
+	}
+	//	8. 然后查数据库
 	postInfos, err99 = models.PostInfoDao.SimpleGetPostsPage(page)
 	if h.errs.CheckMysqlErr(err99) {
 		constants.MysqlErr("分页查询帖子信息出错", err99)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
-	//	8. 将查到的记录 添加到 redis
+	//	9. 将查到的记录 添加到 redis
 	err8 := h.cache.Put(constants.HotPostSummary, postInfos.ToIdStr(), 90*time.Minute)
 	if h.errs.CheckRedisErr(err8) {
 		constants.RedisErr("获取redis缓存帖子id出错", err8)
 		//	TODO  此处 还应该进行 服务降级处理 -- 减少访问到达量
 	}
-	//	9 返回帖子简述
+	//	10. 释放分布式锁, 返回帖子简述
+	_ = h.cache.Delete(lockKey)
 	ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
 }
 
 // GetPostSummaryTime 获取帖子简介 - 指定 每页数量 以及 上次分页中的的最小id - 优先发布时间排序
-// api : /posts/get/summary/time?size=xxx&lmid=  [get]
+// api : /posts/get/summary/time?size=xxx&lmid=  [get]  LOGIN
 // args_explain : 如果是第一次分页查询，参数传空即可，如果lmid参数错误，将默认为不开启优化
 func (h *PostHandler) GetPostSummaryTime(ctx *gin.Context) {
 	resp := common.NewResp()
@@ -195,7 +207,7 @@ func (h *PostHandler) GetPostSummaryTime(ctx *gin.Context) {
 }
 
 // GetPostDetails 根据id ，获取帖子详细内容 + redis 缓存
-// api : /posts/get/detail?postid=xxx
+// api : /posts/get/detail?postid=xxx  [get]  LOGIN
 func (h *PostHandler) GetPostDetails(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
@@ -267,4 +279,31 @@ func (h *PostHandler) GetPostDetails(ctx *gin.Context) {
 	//	9. 释放分布式锁
 	_ = h.cache.Delete(lockKey)
 	ctx.JSON(http.StatusOK, resp.Success(queryPost.Body))
+}
+
+// UpdatePost 修改帖子信息, 不想修改参数的不用传递
+// api : /posts/updates/info  [post]
+// post_args : {"title":"xxx","topic":"xxx","body":"xxx"}  json LOGIN
+func (h *PostHandler) UpdatePost(ctx *gin.Context) {
+
+}
+
+// DeletePost 	 通过帖子id 删除帖子
+// api : /posts/delete/one  [post]
+// post_args : {"post_id":xxx}  json LOGIN
+func (h *PostHandler) DeletePost(ctx *gin.Context) {
+
+}
+
+// GetNotReviewedPost  获取到所有未审核的帖子 - 可以做一部分管理员用户, 仅限管理员使用
+// api : /posts/getinfo/not-reviewed  [get]  LOGIN
+func (h *PostHandler) GetNotReviewedPost(ctx *gin.Context) {
+
+}
+
+// ReviewPost   审核帖子信息 - 可以做一部分管理员用户, 仅限管理员使用
+// api : /posts/review  [post]
+// post_args : {"post_id":xxx,"cur_status":"xxx","to_status":"xxx"}  json LOGIN
+func (h *PostHandler) ReviewPost(ctx *gin.Context) {
+
 }

@@ -1,4 +1,4 @@
-package service
+package router
 
 import (
 	"errors"
@@ -37,7 +37,7 @@ func (tasks *timerTasks_) putTimer(timerSign string, timer myTimer) {
 
 // myTimer 定时器 - 定时任务
 type myTimer struct {
-	Timer    *time.Timer
+	Timer    *time.Ticker
 	TaskFunc TaskFunc
 	Hour     int
 }
@@ -50,8 +50,13 @@ func (myTimer *myTimer) makeTimerByHour(hour int) {
 		nextTimePeriod = nextTimePeriod.Add(24 * time.Hour)
 	}
 	durationUtilPeriod := nextTimePeriod.Sub(curTimePeriod)
-	myTimer.Timer = time.NewTimer(durationUtilPeriod)
+	myTimer.Timer = time.NewTicker(durationUtilPeriod)
 	myTimer.Hour = hour
+}
+
+// makeTimerInterval  创建一个定时器 - 间隔时间执行
+func (myTimer *myTimer) makeTimerInterval(interval time.Duration) {
+	myTimer.Timer = time.NewTicker(interval)
 }
 
 type TaskFunc func(*myTimer)
@@ -131,19 +136,58 @@ func cleanDeletedGroup() {
 
 //	----------------------------------
 
+const Working = "working"
+const Resting = "resting"
+
+var TimeTaskSign string
+
+var TaskCloseChan = make(chan struct{}, 1)
+
+// Check  检查是否有定时任务正在执行中
+func (tasks *timerTasks_) Check() {
+	//	检查定时任务是否正在工作
+	if TimeTaskSign == Working {
+		log.Println(constants.Hint("等待定时任务结束...."))
+		for {
+			time.Sleep(25 * time.Millisecond)
+			if TimeTaskSign == Resting {
+				break
+			}
+		}
+		log.Println(constants.Info("定时任务已经结束...."))
+	}
+	//	发送停止信号
+	TaskCloseChan <- struct{}{}
+	return
+}
+
 // Start 开启定时任务
 func (tasks *timerTasks_) Start() {
 	tasks.init()
-	go func() {
-		for {
-			select {
-			case <-tasks.myTimers[cleanApplySign].Timer.C:
+
+	time.Sleep(time.Minute)
+
+	for {
+		select {
+		case <-tasks.myTimers[cleanApplySign].Timer.C:
+			{
+				TimeTaskSign = Working
 				timer := tasks.myTimers[cleanApplySign]
 				tasks.myTimers[cleanApplySign].TaskFunc(&timer)
-			case <-tasks.myTimers[cleanGroupSign].Timer.C:
+			}
+		case <-tasks.myTimers[cleanGroupSign].Timer.C:
+			{
+				TimeTaskSign = Working
 				timer := tasks.myTimers[cleanGroupSign]
 				tasks.myTimers[cleanGroupSign].TaskFunc(&timer)
 			}
+		case <-TaskCloseChan:
+			{
+				log.Println(constants.Info("定时任务已关闭..."))
+				return
+			}
 		}
-	}()
+		TimeTaskSign = Resting
+	}
+
 }

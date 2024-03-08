@@ -13,6 +13,8 @@ func main() {
 	r := gin.Default()
 	//  据路由列表 初始化路由引擎
 	router.InitRouter(r)
+	//	开启定时任务
+	go router.TimerTasks.Start()
 	//	启动服务
-	common.Run(r, options.C.App.Server.Port, options.C.App.Server.Name, nil)
+	common.Run(r, options.C.App.Server.Port, options.C.App.Server.Name, router.TimerTasks.Check)
 }
