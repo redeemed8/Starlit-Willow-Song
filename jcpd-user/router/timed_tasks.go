@@ -81,8 +81,11 @@ func cleanUsedApply() {
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			constants.MysqlErr("删除过期apply过程出错", err)
 		}
+
 		//	重置定时器
-		t.makeTimerByHour(cleanApplyHour)
+		if t != nil {
+			t.makeTimerByHour(cleanApplyHour)
+		}
 	})
 	myTimer_.fillDealFunc(taskFunc)
 	//	加入到定时任务列表
@@ -126,7 +129,9 @@ func cleanDeletedGroup() {
 		}
 
 		//	重置定时器
-		t.makeTimerByHour(cleanApplyHour)
+		if t != nil {
+			t.makeTimerByHour(cleanApplyHour)
+		}
 	})
 	myTimer_.fillDealFunc(taskFunc)
 	//	加入到定时任务列表

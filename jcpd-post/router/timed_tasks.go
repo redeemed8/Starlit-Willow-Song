@@ -2,6 +2,7 @@ package router
 
 import (
 	"jcpd.cn/post/internal/constants"
+	"jcpd.cn/post/internal/models"
 	"log"
 	"time"
 )
@@ -24,6 +25,7 @@ func (tasks *timerTasks_) init() {
 	tasks.new()
 	//	在这里 初始化定时任务
 	updateHotPost()
+	flushBloomFilter()
 }
 
 // putTimer 向定时任务列表里添加任务
@@ -83,6 +85,32 @@ func updateHotPost() {
 
 //	----------------------------------
 
+const flushBloomFilterHour = 4
+const flushBloomFilterSign = "flush_bloom_filter"
+
+func flushBloomFilter() {
+	var myTimer_ myTimer
+	myTimer_.makeTimerByHour(flushBloomFilterHour)
+	taskFunc := TaskFunc(func(t *myTimer) {
+		//	为了减少一些可能的不必要的问题
+		time.Sleep(time.Second)
+
+		//	刷新过滤器组
+		models.BloomFilters.Flush()
+
+		//	重置定时器
+		if t != nil {
+			t.makeTimerByHour(flushBloomFilterHour)
+		}
+	})
+	myTimer_.fillDealFunc(taskFunc)
+	//	加入到定时任务列表
+	TimerTasks.putTimer(flushBloomFilterSign, myTimer_)
+	log.Println(constants.Hint("定时任务:刷新布隆过滤器  --  状态：已开启"))
+}
+
+//	----------------------------------
+
 const Working = "working"
 const Resting = "resting"
 
@@ -120,6 +148,12 @@ func (tasks *timerTasks_) Start() {
 			{
 				TimeTaskSign = Working
 				tasks.myTimers[updateHotPostSign].TaskFunc(nil)
+			}
+		case <-tasks.myTimers[flushBloomFilterSign].Timer.C:
+			{
+				TimeTaskSign = Working
+				timer := tasks.myTimers[flushBloomFilterSign]
+				tasks.myTimers[flushBloomFilterSign].TaskFunc(&timer)
 			}
 		case <-TaskCloseChan:
 			{
