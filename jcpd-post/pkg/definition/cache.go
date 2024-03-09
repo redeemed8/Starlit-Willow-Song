@@ -12,6 +12,11 @@ type Cache interface {
 	Put(key, value string, expire time.Duration) error
 	Get(key string) (string, error)
 
+	HSet(key, field, value string, expire time.Duration) error
+	HGet(key, field string) (string, error)
+
+	HIncrBy(key, field string, addValue int64) (int64, error)
+
 	HashMultiPut(string, map[string]string, time.Duration) (error, string)
 	HashMultiGet(string) (map[string]string, error, string)
 
@@ -59,6 +64,40 @@ func (Rc *RedisCache) Get(key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	result, err := Rc.rdb.Get(ctx, key).Result()
+	return result, err
+}
+
+func (Rc *RedisCache) HSet(key, field, value string, expire time.Duration) error {
+	Init()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	pipe := Rc.rdb.Pipeline()
+
+	pipe.HSet(ctx, key, field, value)
+	pipe.Expire(ctx, key, expire)
+
+	//	执行管道
+	_, err := pipe.Exec(ctx)
+
+	return err
+}
+
+func (Rc *RedisCache) HGet(key, field string) (string, error) {
+	Init()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	result, err := Rc.rdb.HGet(ctx, key, field).Result()
+	return result, err
+}
+
+func (Rc *RedisCache) HIncrBy(key, field string, addValue int64) (int64, error) {
+	Init()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	result, err := Rc.rdb.HIncrBy(ctx, key, field, addValue).Result()
 	return result, err
 }
 

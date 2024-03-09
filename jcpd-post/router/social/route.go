@@ -24,5 +24,6 @@ func (*RouterSocial) Router(r *gin.Engine) {
 	postserviceGroup := r.Group("/posts/social")
 	{
 		postserviceGroup.POST("/like", handler.LikePost)
+		postserviceGroup.POST("/dislike", handler.DislikePost)
 	}
 }

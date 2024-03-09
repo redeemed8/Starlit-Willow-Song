@@ -18,12 +18,16 @@ func newDao() {
 
 	NewPostInfoDao()
 
+	NewLikeInfoDao()
+
 }
 
 func createTables() {
 	log.Println(constants.Hint("------------------- create tables --------------------"))
 
 	PostInfoDao.CreateTable()
+
+	LikeInfoDao.CreateTable()
 
 	log.Println(constants.Hint("------------------- create success -------------------"))
 }
