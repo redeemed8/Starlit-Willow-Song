@@ -14,4 +14,5 @@ type PostInfoDto struct {
 	Favorites     int       `json:"favorites"`      //	收藏数
 	ReviewStatus  string    `json:"review_status"`  //	审核状态, 0-未审核，1-已通过，2-已驳回
 	Reason        string    `json:"reason"`         //	驳回原因 -- 保存3天
+	IsOwner       string    `json:"is_owner"`       //	是否是帖子的发布人		是 "0"   否 "1"
 }

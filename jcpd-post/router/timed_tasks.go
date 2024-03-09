@@ -92,9 +92,6 @@ func flushBloomFilter() {
 	var myTimer_ myTimer
 	myTimer_.makeTimerByHour(flushBloomFilterHour)
 	taskFunc := TaskFunc(func(t *myTimer) {
-		//	为了减少一些可能的不必要的问题
-		time.Sleep(time.Second)
-
 		//	刷新过滤器组
 		models.BloomFilters.Flush()
 

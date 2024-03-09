@@ -103,7 +103,7 @@ func (h *PostHandler) Publish(ctx *gin.Context) {
 func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, _ := IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -127,7 +127,7 @@ func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 			ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 			return
 		}
-		ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
+		ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos(userClaim.Id)))
 		return
 	}
 	//	5. 如果查询的是热点页，先查 redis的缓存
@@ -139,13 +139,13 @@ func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	}
 	//	6. 如果缓存命中, 简单查询后返回
 	if err2 == nil && idsStr != "" {
-		postInfos, err99 = models.PostInfoDao.GetPostsInIds(idsStr)
+		postInfos, err99 = models.PostInfoDao.GetPostsInIds(idsStr, models.OK[0])
 		if h.errs.CheckMysqlErr(err99) {
 			constants.MysqlErr("分页查询帖子信息出错", err99)
 			ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 			return
 		}
-		ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
+		ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos(userClaim.Id)))
 		return
 	}
 	//	7. 如果缓存没有命中，只能 尝试获取分布式锁
@@ -174,7 +174,7 @@ func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	}
 	//	10. 释放分布式锁, 返回帖子简述
 	_ = h.cache.Delete(lockKey)
-	ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos()))
+	ctx.JSON(http.StatusOK, resp.Success(postInfos.ToDtos(userClaim.Id)))
 }
 
 // GetPostSummaryTime 获取帖子简介 - 指定 每页数量 以及 上次分页中的的最小id - 优先发布时间排序
@@ -183,7 +183,7 @@ func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 func (h *PostHandler) GetPostSummaryTime(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
-	normalErr, _ := IsLogin(ctx, resp)
+	normalErr, userClaim := IsLogin(ctx, resp)
 	if normalErr != nil {
 		return
 	}
@@ -204,7 +204,7 @@ func (h *PostHandler) GetPostSummaryTime(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
-	ctx.JSON(http.StatusOK, resp.Success(infos.ToDtos()))
+	ctx.JSON(http.StatusOK, resp.Success(infos.ToDtos(userClaim.Id)))
 }
 
 // GetPostDetails 根据id ，获取帖子详细内容 + redis 缓存
@@ -320,6 +320,7 @@ func (h *PostHandler) UpdatePost(ctx *gin.Context) {
 		return
 	}
 	//	5. 为了保证最终一致性，我们用先更新数据库，然后删除缓存
+	postinfo.ReviewStatus = models.Wait[0]
 	err2 := models.PostInfoDao.UpdatePostByInfo(updateVo.PostId, postinfo)
 	if h.errs.CheckMysqlErr(err2) {
 		constants.MysqlErr("根据id更新帖子信息出错", err2)
@@ -397,12 +398,12 @@ func (h *PostHandler) DeletePost(ctx *gin.Context) {
 // GetNotReviewedPost  获取到所有未审核的帖子 - 可以做一部分管理员用户, 仅限管理员使用
 // api : /posts/getinfo/not-reviewed  [get]  LOGIN
 func (h *PostHandler) GetNotReviewedPost(ctx *gin.Context) {
-
+	//	...
 }
 
 // ReviewPost   审核帖子信息 - 可以做一部分管理员用户, 仅限管理员使用
 // api : /posts/review  [post]
 // post_args : {"post_id":xxx,"cur_status":"xxx","to_status":"xxx"}  json LOGIN
 func (h *PostHandler) ReviewPost(ctx *gin.Context) {
-
+	//	...
 }

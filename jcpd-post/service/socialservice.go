@@ -31,7 +31,10 @@ func NewSocialHandler(type_ definition.CacheType) *SocialHandler {
 	return &SocialHandler{cache: cache_}
 }
 
-// Testing 测试...
-func (h *SocialHandler) Testing(ctx *gin.Context) {
+// LikePost   点赞帖子
+// api : /posts/social/like  [post]
+// post_args : {"post_id":xxx}  json  LOGIN
+func (h *SocialHandler) LikePost(ctx *gin.Context) {
+
 	ctx.JSON(http.StatusOK, "testing...")
 }

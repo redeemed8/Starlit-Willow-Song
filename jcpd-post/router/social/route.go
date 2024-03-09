@@ -23,6 +23,6 @@ func (*RouterSocial) Router(r *gin.Engine) {
 	handler := service.NewSocialHandler(definition.CacheRedis)
 	postserviceGroup := r.Group("/posts/social")
 	{
-		postserviceGroup.GET("/testing", handler.Testing)
+		postserviceGroup.POST("/like", handler.LikePost)
 	}
 }

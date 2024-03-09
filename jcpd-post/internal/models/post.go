@@ -94,9 +94,9 @@ func (info *postInfoDao_) GetPostsByIds(ids []uint32) (PostInfos, error) {
 }
 
 // GetPostsInIds 使用 in 进行批量获取
-func (info *postInfoDao_) GetPostsInIds(ids string) (PostInfos, error) {
+func (info *postInfoDao_) GetPostsInIds(ids string, status string) (PostInfos, error) {
 	infos := make(PostInfos, 0)
-	sql_ := "select * from" + " " + PostInfoTN + " where id in (" + ids + ") order by likes DESC,created_at DESC"
+	sql_ := "select * from" + " " + PostInfoTN + " where id in (" + ids + ") and review_status = '" + status + "' order by likes DESC,created_at DESC"
 	err := info.DB.Raw(sql_).Scan(&infos).Error
 	return infos, err
 }
@@ -107,6 +107,7 @@ func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, erro
 	infos := make(PostInfos, 0)
 	result := info.DB.Model(&PostInfo{}).
 		Where("created_at >= ?", time.Now().AddDate(0, -1, 0)). //	 优先获取最近一个月内的,不能说一个视频热就一直热
+		Where("review_status = ?", OK[0]).
 		Order("likes DESC,created_at DESC").
 		Limit(pageargs.PageSize).
 		Offset((pageargs.PageNum - 1) * pageargs.PageSize).
@@ -116,6 +117,7 @@ func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, erro
 	}
 	if infos.size() == 0 { //	此处说明跳过的帖子太多，将一个月内的都跳过了，我们就查一个月前的
 		result = info.DB.Model(&PostInfo{}).
+			Where("review_status = ?", OK[0]).
 			Order("likes DESC,created_at DESC").
 			Limit(pageargs.PageSize).
 			Offset((pageargs.PageNum - 1) * pageargs.PageSize).
@@ -129,7 +131,7 @@ func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, erro
 func (info *postInfoDao_) SeniorGetPostPage(pageargs PageArgs, lastMinPostId uint32, ok bool) (PostInfos, error) {
 	//	分页 - 时间优先，热度次之
 	infos := make(PostInfos, 0)
-	tx := info.DB.Model(&PostInfo{}) //	 不变 sql
+	tx := info.DB.Model(&PostInfo{}).Where("review_status = ?", OK[0]) //	 不变 sql
 	if ok {
 		//  说明不是第一次查询，我们为其优化
 		tx = tx.Where("id < ?", lastMinPostId)
@@ -178,10 +180,10 @@ func (infos *PostInfos) size() int {
 	return len(*infos)
 }
 
-func (infos *PostInfos) ToDtos() []dto.PostInfoDto {
+func (infos *PostInfos) ToDtos(userId uint32) []dto.PostInfoDto {
 	var dtos = make([]dto.PostInfoDto, len(*infos))
 	for i, info := range *infos {
-		dtos[i] = PostInfoUtil.TransToDto(info)
+		dtos[i] = PostInfoUtil.TransToDto(info, userId)
 	}
 	return dtos
 }
@@ -271,8 +273,11 @@ func (util *postInfoUtil_) CheckPage(pagenum string, pagesize string) (page Page
 	return PageArgs{pageNum, pageSize}, nil
 }
 
-func (util *postInfoUtil_) TransToDto(info PostInfo) dto.PostInfoDto {
-
+func (util *postInfoUtil_) TransToDto(info PostInfo, userId uint32) dto.PostInfoDto {
+	isOwner := "1"
+	if userId == info.PublisherId {
+		isOwner = "0"
+	}
 	return dto.PostInfoDto{
 		Id:            info.Id,
 		Title:         info.Title,
@@ -285,6 +290,7 @@ func (util *postInfoUtil_) TransToDto(info PostInfo) dto.PostInfoDto {
 		Favorites:     info.Favorites,
 		ReviewStatus:  info.ReviewStatus,
 		Reason:        info.Reason,
+		IsOwner:       isOwner,
 	}
 }
 

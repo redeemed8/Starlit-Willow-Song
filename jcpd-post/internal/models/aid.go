@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"jcpd.cn/post/internal/constants"
 	"log"
+	"time"
 )
 
 type PageArgs struct {
@@ -47,6 +48,10 @@ func initBloomFilters() {
 
 func (filter *bloomFilters) Flush() {
 	filter.rest()
+
+	//	为了减少一些可能的不必要的问题
+	time.Sleep(2 * time.Second)
+
 	for i := 0; i < bloomFilterCount; i++ {
 		// 创建一个容量为100000，假阳性率为0.01的布隆过滤器
 		BloomFilters[i] = bloom.NewWithEstimates(bloomFilterCap, bloomFilterFp)
