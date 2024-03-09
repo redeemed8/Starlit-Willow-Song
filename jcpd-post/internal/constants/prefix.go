@@ -11,5 +11,5 @@ const (
 )
 
 const (
-	PostLikePrefix = "postlike:"
+	PostLikePrefix = "postlike:like:"
 )

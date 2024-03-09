@@ -9,5 +9,6 @@ CREATE TABLE `6481_likeinfo`
 ) ENGINE = InnoDB;
 
 
+# 可以使用联合索引加速
 select id from 6481_likeinfo where user_id = 11 and post_id in (11, 22, 33);
 

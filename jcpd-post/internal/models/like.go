@@ -46,4 +46,8 @@ func (info *likeInfoDao_) GetLikeByTwoId(userId uint32, postId uint32) (LikeInfo
 	return like, result.Error
 }
 
+func (info *likeInfoDao_) DeleteLikeByTwoId(userId uint32, postId uint32) error {
+	return info.DB.Model(&LikeInfo{}).Where("user_id = ? and post_id = ?", userId, postId).Delete(&LikeInfo{}).Error
+}
+
 // -----------------------------------------

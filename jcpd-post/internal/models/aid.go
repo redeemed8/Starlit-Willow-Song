@@ -28,6 +28,8 @@ var BloomFilters bloomFilters //	对外提供服务
 
 // initBloomFilters 初始化布隆过滤器组
 func initBloomFilters() {
+	filterStatus = filterWorking
+
 	for i := 0; i < bloomFilterCount; i++ {
 		// 创建一个容量为100000，假阳性率为0.01的布隆过滤器
 		BloomFilters[i] = bloom.NewWithEstimates(bloomFilterCap, bloomFilterFp)
@@ -43,7 +45,6 @@ func initBloomFilters() {
 	}
 	BloomFilters.AddInBatches(ids)
 	log.Println(constants.Info("布隆过滤器加载完成..."))
-	filterStatus = filterWorking
 }
 
 func (filter *bloomFilters) Flush() {
