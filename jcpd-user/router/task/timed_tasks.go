@@ -1,8 +1,11 @@
-package router
+package task
 
 import (
-	"jcpd.cn/post/internal/constants"
-	"jcpd.cn/post/internal/models"
+	"errors"
+	"gorm.io/gorm"
+	"jcpd.cn/user/internal/constants"
+	"jcpd.cn/user/internal/models"
+	"jcpd.cn/user/utils"
 	"log"
 	"time"
 )
@@ -23,9 +26,8 @@ func (tasks *timerTasks_) new() {
 // init 初始化定时任务列表
 func (tasks *timerTasks_) init() {
 	tasks.new()
-	//	在这里 初始化定时任务
-	updateHotPost()
-	flushBloomFilter()
+	cleanUsedApply()
+	cleanDeletedGroup()
 }
 
 // putTimer 向定时任务列表里添加任务
@@ -40,7 +42,7 @@ type myTimer struct {
 	Hour     int
 }
 
-// makeTimerByHour 根据小时创建定时器 - 每天的指定时间执行
+// makeTimerByHour 根据小时创建定时器
 func (myTimer *myTimer) makeTimerByHour(hour int) {
 	curTimePeriod := time.Now()
 	nextTimePeriod := time.Date(curTimePeriod.Year(), curTimePeriod.Month(), curTimePeriod.Day(), hour, 0, 0, 0, curTimePeriod.Location())
@@ -57,7 +59,7 @@ func (myTimer *myTimer) makeTimerInterval(interval time.Duration) {
 	myTimer.Timer = time.NewTicker(interval)
 }
 
-type TaskFunc func(t *myTimer)
+type TaskFunc func(*myTimer)
 
 // fillDealFunc 装填处理函数
 func (myTimer *myTimer) fillDealFunc(taskfunc TaskFunc) {
@@ -66,44 +68,75 @@ func (myTimer *myTimer) fillDealFunc(taskfunc TaskFunc) {
 
 //	----------------------------------
 
-const updateHotPostTime = 1 * time.Minute
-const updateHotPostSign = "update_hot_post"
+const cleanApplyHour = 12
+const cleanApplySign = "clean_apply"
 
-// updateHotPost 定时任务，将 redis中的点赞数，同步到redis，同时更新热点帖子id
-func updateHotPost() {
+// cleanUsedApply 设置一个定时任务在协程中开启，定时清理一些已经通过或拒绝了的申请
+func cleanUsedApply() {
 	var myTimer_ myTimer
-	myTimer_.makeTimerInterval(updateHotPostTime)
+	myTimer_.makeTimerByHour(cleanApplyHour)
 	taskFunc := TaskFunc(func(t *myTimer) {
-		//  定时任务，将 redis中的点赞数，同步到redis，同时更新热点帖子 id
-
-	})
-	myTimer_.fillDealFunc(taskFunc)
-	//	加入到定时任务列表
-	TimerTasks.putTimer(updateHotPostSign, myTimer_)
-	log.Println(constants.Hint("定时任务:更新热点帖子  --  状态：已开启"))
-}
-
-//	----------------------------------
-
-const flushBloomFilterHour = 4
-const flushBloomFilterSign = "flush_bloom_filter"
-
-func flushBloomFilter() {
-	var myTimer_ myTimer
-	myTimer_.makeTimerByHour(flushBloomFilterHour)
-	taskFunc := TaskFunc(func(t *myTimer) {
-		//	刷新过滤器组
-		models.BloomFilters.Flush()
+		// 清理一些已经通过或拒绝了的申请
+		err := models.JoinApplyDao.DeleteApplyByNotStatus(models.JoinApplyUtil.GetPendStatus())
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			constants.MysqlErr("删除过期apply过程出错", err)
+		}
 
 		//	重置定时器
 		if t != nil {
-			t.makeTimerByHour(flushBloomFilterHour)
+			t.makeTimerByHour(cleanApplyHour)
 		}
 	})
 	myTimer_.fillDealFunc(taskFunc)
 	//	加入到定时任务列表
-	TimerTasks.putTimer(flushBloomFilterSign, myTimer_)
-	log.Println(constants.Hint("定时任务:刷新布隆过滤器  --  状态：已开启"))
+	TimerTasks.putTimer(cleanApplySign, myTimer_)
+	log.Println(constants.Hint("定时任务:清理已审核的申请信息  --  状态：已开启"))
+}
+
+//	----------------------------------
+
+const cleanGroupHour = 3
+const cleanGroupSign = "clean_group"
+
+// cleanDeletedGroup 删除已被解散的群聊，并且从用户的群列表中删除
+func cleanDeletedGroup() {
+	var myTimer_ myTimer
+	myTimer_.makeTimerByHour(cleanGroupHour)
+	taskFunc := TaskFunc(func(t *myTimer) {
+		// 删除已被解散的群聊，并且从用户的群列表中删除
+
+		//	获取所有已解散的群
+		groups, err1 := models.GroupInfoDao.GetGroupsByMap(map[string]interface{}{"status": models.GroupDeleted})
+		if err1 != nil {
+			log.Println(constants.Hint("获取已删除的群聊失败,err = " + err1.Error()))
+			return
+		}
+
+		//	在用户群列表中删除
+		for _, group := range groups {
+			err2 := models.UserInfoDao.GroupListUpdates(group.Id, utils.ParseListToUint(group.MemberIds))
+			if err2 != nil {
+				log.Println(constants.Hint("在用户群列表中删除群id出错,err = " + err2.Error()))
+				return
+			}
+		}
+
+		//	删除群
+		err3 := models.GroupInfoDao.DeleteGroupById(groups.Ids())
+		if err3 != nil {
+			log.Println(constants.Hint("删除群信息失败,err = " + err3.Error()))
+			return
+		}
+
+		//	重置定时器
+		if t != nil {
+			t.makeTimerByHour(cleanApplyHour)
+		}
+	})
+	myTimer_.fillDealFunc(taskFunc)
+	//	加入到定时任务列表
+	TimerTasks.putTimer(cleanGroupSign, myTimer_)
+	log.Println(constants.Hint("定时任务:清理已被解散的群聊  --  状态：已开启"))
 }
 
 //	----------------------------------
@@ -137,20 +170,21 @@ func (tasks *timerTasks_) Check() {
 func (tasks *timerTasks_) Start() {
 	tasks.init()
 
-	time.Sleep(time.Minute)
+	time.Sleep(time.Minute) // 延迟启动
 
 	for {
 		select {
-		case <-tasks.myTimers[updateHotPostSign].Timer.C:
+		case <-tasks.myTimers[cleanApplySign].Timer.C:
 			{
 				TimeTaskSign = Working
-				tasks.myTimers[updateHotPostSign].TaskFunc(nil)
+				timer := tasks.myTimers[cleanApplySign]
+				tasks.myTimers[cleanApplySign].TaskFunc(&timer)
 			}
-		case <-tasks.myTimers[flushBloomFilterSign].Timer.C:
+		case <-tasks.myTimers[cleanGroupSign].Timer.C:
 			{
 				TimeTaskSign = Working
-				timer := tasks.myTimers[flushBloomFilterSign]
-				tasks.myTimers[flushBloomFilterSign].TaskFunc(&timer)
+				timer := tasks.myTimers[cleanGroupSign]
+				tasks.myTimers[cleanGroupSign].TaskFunc(&timer)
 			}
 		case <-TaskCloseChan:
 			{

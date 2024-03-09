@@ -6,6 +6,7 @@ import (
 	_ "jcpd.cn/post/internal/init"
 	"jcpd.cn/post/internal/options"
 	"jcpd.cn/post/router"
+	"jcpd.cn/post/router/task"
 )
 
 func main() {
@@ -14,7 +15,7 @@ func main() {
 	//  据路由列表 初始化路由引擎
 	router.InitRouter(r)
 	//	开启定时任务
-	go router.TimerTasks.Start()
+	go task.TimerTasks.Start()
 	//	启动服务
-	common.Run(r, options.C.App.Server.Port, options.C.App.Server.Name, router.TimerTasks.Check)
+	common.Run(r, options.C.App.Server.Port, options.C.App.Server.Name, task.TimerTasks.Check)
 }

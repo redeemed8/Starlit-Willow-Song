@@ -7,6 +7,7 @@ import (
 	_ "jcpd.cn/user/internal/init"
 	"jcpd.cn/user/internal/options"
 	"jcpd.cn/user/router"
+	"jcpd.cn/user/router/task"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 	//	grpc 服务注册
 	grpc := api_init.RegisterGrpc()
 	//	开启定时任务
-	go router.TimerTasks.Start()
+	go task.TimerTasks.Start()
 	//	启动服务
-	common.Run(r, options.C.App.Server.Port, options.C.App.Server.Name, grpc.Stop, router.TimerTasks.Check)
+	common.Run(r, options.C.App.Server.Port, options.C.App.Server.Name, grpc.Stop, task.TimerTasks.Check)
 }
