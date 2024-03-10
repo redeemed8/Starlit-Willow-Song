@@ -6,6 +6,7 @@ import (
 	_ "jcpd.cn/post/internal/init"
 	"jcpd.cn/post/internal/options"
 	"jcpd.cn/post/router"
+	"jcpd.cn/post/router/consumer"
 	"jcpd.cn/post/router/task"
 )
 
@@ -16,6 +17,8 @@ func main() {
 	router.InitRouter(r)
 	//	开启定时任务
 	go task.TimerTasks.Start()
+	//	开启消息队列监听
+	go consumer.KafkaListener.StartListen()
 	//	启动服务
-	common.Run(r, options.C.App.Server.Port, options.C.App.Server.Name, task.TimerTasks.Check)
+	common.Run(r, options.C.App.Server.Port, options.C.App.Server.Name, task.TimerTasks.Check, consumer.KafkaListener.Check)
 }

@@ -1,6 +1,7 @@
 package options
 
 import (
+	"github.com/IBM/sarama"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
 	"gorm.io/gorm"
@@ -14,26 +15,29 @@ func New() *Config {
 
 // Config 顶级配置类
 type Config struct {
-	App   AppConfig
-	Mysql MysqlConfig
-	Redis RedisConfig
-	DB    *gorm.DB
-	RDB   *redis.Client
+	App      AppConfig
+	Mysql    MysqlConfig
+	Redis    RedisConfig
+	KafKa    KafkaConfig
+	DB       *gorm.DB
+	RDB      *redis.Client
+	Producer *sarama.AsyncProducer
+	Consumer sarama.ConsumerGroup
 }
 
-// AppConfig 一级配置类
+// AppConfig app一级配置类
 type AppConfig struct {
 	Server Server
 }
 
-// MysqlConfig 一级配置类
+// MysqlConfig mysql一级配置类
 type MysqlConfig struct {
 	DSN      DSN
 	Basename string
 	Others   string
 }
 
-// RedisConfig 一级配置类
+// RedisConfig redis一级配置类
 type RedisConfig struct {
 	Addr        string
 	Password    string
@@ -42,17 +46,39 @@ type RedisConfig struct {
 	MinIdleConn int
 }
 
-// Server 二级配置类
+// KafkaConfig kafka一级配置类
+type KafkaConfig struct {
+	Consumer Consumer
+	Producer Producer
+}
+
+// Server app二级配置类
 type Server struct {
 	Port string
 	Name string
 }
 
-// DSN 二级配置类
+// DSN mysql二级配置类
 type DSN struct {
 	User     string
 	Password string
 	Addr     string
+}
+
+// Consumer kafka二级配置类
+type Consumer struct {
+	GroupId          string
+	Brokers          []string
+	Topics           []string
+	ReturnErrors     bool
+	OffsetAutoCommit bool
+}
+
+// Producer kafka二级配置类
+type Producer struct {
+	Addr          []string
+	Topics        []string
+	ReturnSuccess bool
 }
 
 func ReadAppConfig() {
@@ -83,5 +109,23 @@ func ReadRedisConfig() {
 		DB:          viper.GetInt("redis.DB"),
 		PoolSize:    viper.GetInt("redis.poolSize"),
 		MinIdleConn: viper.GetInt("redis.minIdleConn"),
+	}
+}
+
+func ReadKafkaConfig() {
+	producerPrefix := "kafka.producer."
+	C.KafKa.Producer = Producer{
+		Addr:          viper.GetStringSlice(producerPrefix + "addr"),
+		Topics:        viper.GetStringSlice(producerPrefix + "topics"),
+		ReturnSuccess: viper.GetBool(producerPrefix + "return-success"),
+	}
+
+	consumerPrefix := "kafka.consumer."
+	C.KafKa.Consumer = Consumer{
+		GroupId:          viper.GetString(consumerPrefix + "group-id"),
+		Brokers:          viper.GetStringSlice(consumerPrefix + "brokers"),
+		Topics:           viper.GetStringSlice(consumerPrefix + "topics"),
+		ReturnErrors:     viper.GetBool(consumerPrefix + "return-errors"),
+		OffsetAutoCommit: viper.GetBool(consumerPrefix + "offset-auto-commit"),
 	}
 }

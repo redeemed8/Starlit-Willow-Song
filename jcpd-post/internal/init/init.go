@@ -2,6 +2,7 @@ package init
 
 import (
 	"context"
+	"github.com/IBM/sarama"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
@@ -25,6 +26,7 @@ func init() {
 	options.ReadAppConfig()
 	options.ReadMysqlConfig()
 	options.ReadRedisConfig()
+	options.ReadKafkaConfig()
 	log.Println(constants.Info("Application two api_init configuration successfully ... "))
 }
 
@@ -82,4 +84,39 @@ func init() {
 	constants.RedisOptions = redisOptions
 	constants.RedisStatus = constants.OK
 	log.Println(constants.Info("Application two connect Redis database successfully ..."))
+}
+
+// 初始化 kafka的生产者 消费者
+func init() {
+	//	初始化生产者
+	config := sarama.NewConfig()
+	config.Producer.Return.Successes = options.C.KafKa.Producer.ReturnSuccess
+
+	producer, err := sarama.NewAsyncProducer(options.C.KafKa.Producer.Addr, config)
+	if err != nil {
+		log.Fatalln(constants.Err("Application two failed to start sarama producer , cause by : " + err.Error()))
+	}
+	options.C.Producer = &producer
+	if options.C.Producer == nil {
+		log.Println(constants.Err("Application two failed to connect kafka producer , cause by : producer == nil ..."))
+	}
+	log.Println(constants.Info("Application two connect kafka producer successfully ..."))
+
+	//	初始化消费者
+	config.Version = sarama.V2_6_0_0
+	config.Consumer.Return.Errors = options.C.KafKa.Consumer.ReturnErrors
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	config.Consumer.Offsets.AutoCommit.Enable = options.C.KafKa.Consumer.OffsetAutoCommit
+
+	brokers := options.C.KafKa.Consumer.Brokers
+	groupID := options.C.KafKa.Consumer.GroupId
+
+	client, err2 := sarama.NewConsumerGroup(brokers, groupID, config)
+	if err != nil {
+		log.Fatalln(constants.Err("Application two failed to new consumer group , cause by : " + err2.Error()))
+	}
+	options.C.Consumer = client
+	if options.C.Consumer == nil {
+		log.Println(constants.Err("Application two failed to new consumer group , cause by : consumer == nil ..."))
+	}
 }

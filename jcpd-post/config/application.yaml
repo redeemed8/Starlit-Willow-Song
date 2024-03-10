@@ -22,3 +22,20 @@ mysql:
     addr: 127.0.0.1:3306
   basename: sws
   others: charset=utf8mb4&parseTime=True&loc=Local
+
+# kafka 配置
+kafka:
+  consumer:
+    group-id: jchhh-kafka-1
+    brokers:
+      - 127.0.0.1:9092
+    topics:
+      - jchhh-sws
+    return-errors: true
+    offset-auto-commit: false
+  producer:
+    addr:
+      - 127.0.0.1:9092
+    topics:
+      - jchhh-sws
+    return-success: true

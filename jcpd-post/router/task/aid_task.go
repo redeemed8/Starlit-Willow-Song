@@ -69,8 +69,14 @@ func (*updateHotPostAid) dealWithKeys(ctx context.Context, keys []string) ([]red
 		}
 	}(selectPipe)
 
+	//	批量获取
 	for _, key := range keys {
 		selectPipe.HGetAll(ctx, key)
+	}
+
+	//	批量删除
+	for _, key := range keys {
+		selectPipe.Del(ctx, key)
 	}
 
 	cmds, err := selectPipe.Exec(ctx)
