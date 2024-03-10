@@ -20,3 +20,16 @@ CREATE INDEX ppp ON 3491_postinfo (publisher_id);
 
 # 联合索引
 CREATE INDEX like_time ON 3491_postinfo (likes, updated_at);
+
+# 不同值修改
+UPDATE 3491_postinfo
+SET likes =
+        CASE
+            WHEN id = 1 THEN likes + 1
+            WHEN id = 2 THEN likes - 8
+            WHEN id = 3 THEN likes + 15
+            ELSE likes
+            END
+WHERE id IN (1, 2, 3);
+
+

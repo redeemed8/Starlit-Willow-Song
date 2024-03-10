@@ -96,7 +96,7 @@ func init() {
 	if err != nil {
 		log.Fatalln(constants.Err("Application two failed to start sarama producer , cause by : " + err.Error()))
 	}
-	options.C.Producer = &producer
+	options.C.Producer = producer
 	if options.C.Producer == nil {
 		log.Println(constants.Err("Application two failed to connect kafka producer , cause by : producer == nil ..."))
 	}

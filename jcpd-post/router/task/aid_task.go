@@ -2,11 +2,13 @@ package task
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
+	"github.com/IBM/sarama"
 	"github.com/go-redis/redis/v8"
 	"jcpd.cn/post/internal/constants"
 	"jcpd.cn/post/internal/options"
+	"jcpd.cn/post/router/consumer"
 	"log"
 )
 
@@ -88,20 +90,36 @@ func (*updateHotPostAid) dealWithKeys(ctx context.Context, keys []string) ([]red
 
 // parseCmds 解析批量查询的结果，这里是已知结果类型是map
 func (*updateHotPostAid) parseCmdsAndNotify(cmds []redis.Cmder, keys []string) error {
+	if len(cmds) == 0 {
+		return nil
+	}
 	//  获取到每个hash类型key对应的字段和值
 	for i, cmd := range cmds {
+		if i&1 == 1 { //	 因为是delete操作的结果
+			continue
+		}
 		resultMap, err := cmd.(*redis.StringStringMapCmd).Result()
 		if err != nil {
 			constants.RedisErr("解析redis批量获取值map时出错", err)
 			return err
 		}
-		//	将 对应的key 和 map 放入消息队列异步处理
+		// 将 对应的key 和 map 放入消息队列异步处理, 先将 map 转换为 JSON 字符串
+		jsonData, err1 := json.Marshal(resultMap)
+		if err != nil {
+			log.Println(constants.Err("Failed to marshal data to JSON: %s" + err1.Error()))
+			continue
+		}
 
-		fmt.Println("key = ", keys[i], "   map = ", resultMap)
+		jsonStr := keys[i] + consumer.KeyFvSplitSymbol + string(jsonData)
 
+		//	发送消息，超时重试，失败拦截
+		_ = consumer.Send(&sarama.ProducerMessage{Topic: options.C.KafKa.Producer.Topics[0], Value: sarama.StringEncoder(jsonStr)})
+
+		//	失败了可能是 消费者宕机了
 	}
 
 	//	 发送给消息队列一个 刷新热点帖子缓存 的标记
+	_ = consumer.Send(&sarama.ProducerMessage{Topic: options.C.KafKa.Producer.Topics[0], Value: sarama.StringEncoder(consumer.UpdateHotPostSymbol)})
 
 	return nil
 }

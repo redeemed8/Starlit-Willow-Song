@@ -4,6 +4,7 @@ import (
 	"context"
 	"jcpd.cn/post/internal/constants"
 	"jcpd.cn/post/internal/models"
+	"jcpd.cn/post/router/consumer"
 	"log"
 	"time"
 )
@@ -149,6 +150,9 @@ func (tasks *timerTasks_) Start() {
 		select {
 		case <-tasks.myTimers[updateHotPostSign].Timer.C:
 			{
+				if consumer.KafkaListener.IsErr() {
+					break
+				}
 				TimeTaskSign = Working
 				tasks.myTimers[updateHotPostSign].TaskFunc(nil)
 			}

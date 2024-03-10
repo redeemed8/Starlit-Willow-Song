@@ -21,7 +21,7 @@ type Config struct {
 	KafKa    KafkaConfig
 	DB       *gorm.DB
 	RDB      *redis.Client
-	Producer *sarama.AsyncProducer
+	Producer sarama.AsyncProducer
 	Consumer sarama.ConsumerGroup
 }
 

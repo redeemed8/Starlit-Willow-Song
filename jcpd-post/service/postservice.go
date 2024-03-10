@@ -169,7 +169,7 @@ func (h *PostHandler) GetPostSummaryHot(ctx *gin.Context) {
 	//	9. 将查到的记录 添加到 redis
 	err8 := h.cache.Put(constants.HotPostSummary, postInfos.ToIdStr(), 90*time.Minute)
 	if h.errs.CheckRedisErr(err8) {
-		constants.RedisErr("获取redis缓存帖子id出错", err8)
+		constants.RedisErr("添加redis缓存帖子id出错", err8)
 		//	TODO  此处 还应该进行 服务降级处理 -- 减少访问到达量
 	}
 	//	10. 释放分布式锁, 返回帖子简述
