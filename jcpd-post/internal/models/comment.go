@@ -18,7 +18,7 @@ func NewCommentInfoDao() {
 
 // CommentInfo 帖子评论信息 - 联合索引
 type CommentInfo struct {
-	Id            uint32    `gorm:"primaryKey;autoIncrement"` //  主键 id	便于快速插入数据
+	Id            uint32    `gorm:"primaryKey;autoIncrement"` //  主键 id,便于快速插入数据,虽然查询要回表，但好处是节省空间，同时防止页分裂
 	CreatedAt     time.Time `gorm:"index:cp"`                 //  帖子创建时间
 	PostId        uint32    `gorm:"not null;index:cp"`        //  所属帖子id
 	PublisherId   uint32    `gorm:"not null"`                 //  发布人id
