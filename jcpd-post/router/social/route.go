@@ -25,5 +25,9 @@ func (*RouterSocial) Router(r *gin.Engine) {
 	{
 		postserviceGroup.POST("/like", handler.LikePost)
 		postserviceGroup.POST("/dislike", handler.DislikePost)
+
+		postserviceGroup.POST("/comment/publish", handler.PublishComment)
+		postserviceGroup.POST("/comment/delete", handler.DeleteComment)
+		postserviceGroup.GET("/comment/getnew", handler.GetNewestComment)
 	}
 }

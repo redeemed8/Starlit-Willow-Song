@@ -203,3 +203,23 @@ func (h *SocialHandler) DislikePost(ctx *gin.Context) {
 	//	7. 成功
 	ctx.JSON(http.StatusOK, resp.Success("点赞已取消"))
 }
+
+// PublishComment   发布评论
+// api : /posts/social/comment/publish  [post]
+// post_args : {"post_id":xxx,"content":"xxx"}  json  LOGIN
+func (h *SocialHandler) PublishComment(ctx *gin.Context) {
+	ctx.JSON(200, "testing")
+}
+
+// DeleteComment   删除评论
+// api : /posts/social/comment/delete  [post]
+// post_args : {"post_id":xxx}  json  LOGIN
+func (h *SocialHandler) DeleteComment(ctx *gin.Context) {
+	ctx.JSON(200, "testing")
+}
+
+// GetNewestComment   获取最新发布评论
+// api : /posts/social/comment/getnew?id=xxx&pagenum=xxx&pagesize=xxx  [get]  LOGIN
+func (h *SocialHandler) GetNewestComment(ctx *gin.Context) {
+	ctx.JSON(200, "testing")
+}
