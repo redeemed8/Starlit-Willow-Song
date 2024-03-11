@@ -203,5 +203,3 @@ func (h *SocialHandler) DislikePost(ctx *gin.Context) {
 	//	7. 成功
 	ctx.JSON(http.StatusOK, resp.Success("点赞已取消"))
 }
-
-//	明天写评论

@@ -20,6 +20,8 @@ func newDao() {
 
 	NewLikeInfoDao()
 
+	NewCommentInfoDao()
+
 }
 
 func createTables() {
@@ -28,6 +30,8 @@ func createTables() {
 	PostInfoDao.CreateTable()
 
 	LikeInfoDao.CreateTable()
+
+	CommentInfoDao.CreateTable()
 
 	log.Println(constants.Hint("------------------- create success -------------------"))
 }
