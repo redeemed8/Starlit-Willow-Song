@@ -6,7 +6,9 @@ var SocialVoHelper socialVoHelper_
 type socialVoHelper_ struct{}
 
 type socialVo struct {
-	LikePostVo likePostVo
+	LikePostVo       likePostVo
+	PublishCommentVo publishCommentVo
+	DeleteCommentVo  deleteCommentVo
 }
 
 func (*socialVoHelper_) NewSocialVo() *socialVo {
@@ -14,5 +16,14 @@ func (*socialVoHelper_) NewSocialVo() *socialVo {
 }
 
 type likePostVo struct {
+	PostId uint32 `json:"post_id"`
+}
+
+type publishCommentVo struct {
+	PostId  uint32 `json:"post_id"`
+	Content string `json:"content"`
+}
+
+type deleteCommentVo struct {
 	PostId uint32 `json:"post_id"`
 }

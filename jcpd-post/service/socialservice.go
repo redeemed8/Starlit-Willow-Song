@@ -208,7 +208,47 @@ func (h *SocialHandler) DislikePost(ctx *gin.Context) {
 // api : /posts/social/comment/publish  [post]
 // post_args : {"post_id":xxx,"content":"xxx"}  json  LOGIN
 func (h *SocialHandler) PublishComment(ctx *gin.Context) {
-	ctx.JSON(200, "testing")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var publishVo = vo.SocialVoHelper.NewSocialVo().PublishCommentVo
+	if err := ctx.ShouldBind(&publishVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 优先过滤 post_id
+	if publishVo.PostId < 1 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PostNotFound))
+		return
+	}
+	if ok := models.CommentInfoUtil.CheckContent(publishVo.Content); !ok {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.CommentNotFormat))
+		return
+	}
+	//	4. 查数据库看 帖子id是否真实
+	queryPost, err1 := models.PostInfoDao.GetPostById(publishVo.PostId)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据帖子id获取帖子出错", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryPost.Title == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PostNotFound))
+		return
+	}
+	//	5. 添加一个评论记录
+	commentinfo := models.CommentInfo{PostId: publishVo.PostId, PublisherId: userClaim.Id, PublisherName: userClaim.Username, Body: publishVo.Content}
+	err2 := models.CommentInfoDao.CreateCommentInfo(&commentinfo)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("创建评论出错", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(200, resp.Success(commentinfo.Id))
 }
 
 // DeleteComment   删除评论

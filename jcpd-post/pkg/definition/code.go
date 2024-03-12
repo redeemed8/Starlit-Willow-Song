@@ -20,4 +20,6 @@ var (
 
 	PageNumNotFormat  = common.NormalErr{Code: 4011, Msg: "分页参数的页码有误，应为正整数"}
 	PageSizeNotFormat = common.NormalErr{Code: 4012, Msg: "分页参数的每页大小有误，应为小于100的非负整数"}
+
+	CommentNotFormat = common.NormalErr{Code: 4021, Msg: "帖子内容不符合规范"}
 )

@@ -3,6 +3,7 @@ package models
 import (
 	"gorm.io/gorm"
 	"jcpd.cn/post/internal/options"
+	"jcpd.cn/post/utils"
 	"time"
 )
 
@@ -36,4 +37,18 @@ func (comment *CommentInfo) TableName() string {
 // CreateTable 创建表
 func (info *commentInfoDao_) CreateTable() {
 	_ = info.DB.AutoMigrate(&CommentInfo{})
+}
+
+// CreateCommentInfo 创建一条评论
+func (info *commentInfoDao_) CreateCommentInfo(comment *CommentInfo) error {
+	return info.DB.Model(&CommentInfo{}).Create(comment).Error
+}
+
+// ------------------------------------
+
+func (util *commentInfoUtil_) CheckContent(body string) bool {
+	if body == "" || utils.CountCharacters(body) > 500 {
+		return false
+	}
+	return true
 }

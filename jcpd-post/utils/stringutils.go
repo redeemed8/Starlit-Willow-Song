@@ -4,8 +4,8 @@ import (
 	"unicode/utf8"
 )
 
-// countCharacters 返回字符串str的字符数
-func countCharacters(str string) int {
+// CountCharacters 返回字符串str的字符数
+func CountCharacters(str string) int {
 	if str == "" {
 		return 0
 	}
@@ -14,7 +14,7 @@ func countCharacters(str string) int {
 
 func SimplifyPostBody(body string) string {
 	//	判断 内容 字数
-	count := countCharacters(body)
+	count := CountCharacters(body)
 	if count <= 100 {
 		return body
 	}
