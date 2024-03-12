@@ -378,10 +378,10 @@ func (h *PostHandler) DeletePost(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
-	//	再删除数据库
-	err2 := models.PostInfoDao.DeletePostById(deleteVo.PostId)
+	//	再删除数据库 - 标记为 已删除
+	err2 := models.PostInfoDao.UpdatePostByInfo(deleteVo.PostId, models.PostInfo{Status: models.PostDelete})
 	if h.errs.CheckMysqlErr(err2) {
-		constants.MysqlErr("删除数据库帖子信息出错", err2)
+		constants.MysqlErr("标记数据库帖子为已删除出错", err2)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
@@ -392,6 +392,7 @@ func (h *PostHandler) DeletePost(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
+	//	8. 最后采用定时任务定时清理已被删除的帖子的所有评论...
 	ctx.JSON(http.StatusOK, resp.Success("帖子删除成功"))
 }
 

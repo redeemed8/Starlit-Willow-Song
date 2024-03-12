@@ -44,6 +44,18 @@ func (info *commentInfoDao_) CreateCommentInfo(comment *CommentInfo) error {
 	return info.DB.Model(&CommentInfo{}).Create(comment).Error
 }
 
+// GetCommentById 根据id获取评论
+func (info *commentInfoDao_) GetCommentById(id uint32) (CommentInfo, error) {
+	var comment CommentInfo
+	result := info.DB.Model(&CommentInfo{}).Where("id = ?", id).First(&comment)
+	return comment, result.Error
+}
+
+// DeleteCommentById 根据id删除评论
+func (info *commentInfoDao_) DeleteCommentById(id uint32) error {
+	return info.DB.Model(&CommentInfo{}).Where("id = ?", id).Delete(&CommentInfo{}).Error
+}
+
 // ------------------------------------
 
 func (util *commentInfoUtil_) CheckContent(body string) bool {

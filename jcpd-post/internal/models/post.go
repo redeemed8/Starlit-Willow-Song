@@ -38,9 +38,13 @@ type PostInfo struct {
 	Favorites     int       `gorm:"default:0"`                  //	收藏数
 	ReviewStatus  string    `gorm:"size:1;default:'0'"`         //	审核状态, 0-未审核，1-已通过，2-已驳回
 	Reason        string    //	驳回原因 -- 保存3天
+	Status        string    `gorm:"default:'ok'"` //	帖子状态，用于标记是否被删除
 }
 
 const PostInfoTN = "3491_postinfo"
+
+const PostOk = "ok"
+const PostDelete = "del" //	定义删除帖子的标记
 
 // TableName 表名
 func (post *PostInfo) TableName() string {
@@ -55,7 +59,7 @@ func (info *postInfoDao_) CreateTable() {
 // GetAllIds 获取所有帖子 id
 func (info *postInfoDao_) GetAllIds() ([]uint32, error) {
 	var ids = make([]uint32, 0)
-	sql_ := "select id from" + " " + PostInfoTN
+	sql_ := "select id from" + " " + PostInfoTN + " where status = " + PostOk
 	result := info.DB.Raw(sql_).Scan(&ids)
 	return ids, result.Error
 }
@@ -68,35 +72,35 @@ func (info *postInfoDao_) CreatePost(post *PostInfo) error {
 // GetPostById 根据id获取单条
 func (info *postInfoDao_) GetPostById(id uint32) (PostInfo, error) {
 	var post PostInfo
-	result := info.DB.Model(&PostInfo{}).Where("id = ?", id).First(&post)
+	result := info.DB.Model(&PostInfo{}).Where("id = ? and status = ?", id, PostOk).First(&post)
 	return post, result.Error
 }
 
 // GetPostOwnerById 根据id获取发布人id
 func (info *postInfoDao_) GetPostOwnerById(id uint32) (uint32, error) {
 	var ownerId uint32
-	result := info.DB.Model(&PostInfo{}).Select("publisher_id").Where("id = ?", id).First(&ownerId)
+	result := info.DB.Model(&PostInfo{}).Select("publisher_id").Where("id = ? and status = ?", id, PostOk).First(&ownerId)
 	return ownerId, result.Error
 }
 
 // GetPostByMap 根据 指定字段获取该帖子
 func (info *postInfoDao_) GetPostByMap(condition map[string]interface{}) (PostInfo, error) {
 	var post PostInfo
-	result := info.DB.Model(&PostInfo{}).Where(condition).First(&post)
+	result := info.DB.Model(&PostInfo{}).Where(condition).Where("status = ?", PostOk).First(&post)
 	return post, result.Error
 }
 
 // GetPostsByIds 批量获取
 func (info *postInfoDao_) GetPostsByIds(ids []uint32) (PostInfos, error) {
 	var posts = make(PostInfos, 0)
-	result := info.DB.Model(&PostInfo{}).Where("id in ?", ids).Find(&posts)
+	result := info.DB.Model(&PostInfo{}).Where("id in ?", ids).Where("status = ?", PostOk).Find(&posts)
 	return posts, result.Error
 }
 
 // GetPostsInIds 使用 in 进行批量获取
 func (info *postInfoDao_) GetPostsInIds(ids string, status string) (PostInfos, error) {
 	infos := make(PostInfos, 0)
-	sql_ := "select * from" + " " + PostInfoTN + " where id in (" + ids + ") and review_status = '" + status + "' order by likes DESC,created_at DESC"
+	sql_ := "select * from" + " " + PostInfoTN + " where id in (" + ids + ") and review_status = '" + status + "' and status = '" + PostOk + "' order by likes DESC,created_at DESC"
 	err := info.DB.Raw(sql_).Scan(&infos).Error
 	return infos, err
 }
@@ -108,6 +112,7 @@ func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, erro
 	result := info.DB.Model(&PostInfo{}).
 		Where("created_at >= ?", time.Now().AddDate(0, -1, 0)). //	 优先获取最近一个月内的,不能说一个视频热就一直热
 		Where("review_status = ?", OK[0]).
+		Where("status = ?", PostOk).
 		Order("likes DESC,created_at DESC").
 		Limit(pageargs.PageSize).
 		Offset((pageargs.PageNum - 1) * pageargs.PageSize).
@@ -118,6 +123,7 @@ func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, erro
 	if infos.size() == 0 { //	此处说明跳过的帖子太多，将一个月内的都跳过了，我们就查一个月前的
 		result = info.DB.Model(&PostInfo{}).
 			Where("review_status = ?", OK[0]).
+			Where("status = ?", PostOk).
 			Order("likes DESC,created_at DESC").
 			Limit(pageargs.PageSize).
 			Offset((pageargs.PageNum - 1) * pageargs.PageSize).
@@ -131,7 +137,7 @@ func (info *postInfoDao_) SimpleGetPostsPage(pageargs PageArgs) (PostInfos, erro
 func (info *postInfoDao_) SeniorGetPostPage(pageargs PageArgs, lastMinPostId uint32, ok bool) (PostInfos, error) {
 	//	分页 - 时间优先，热度次之
 	infos := make(PostInfos, 0)
-	tx := info.DB.Model(&PostInfo{}).Where("review_status = ?", OK[0]) //	 不变 sql
+	tx := info.DB.Model(&PostInfo{}).Where("review_status = ? and status = ?", OK[0], PostOk) //	 不变 sql
 	if ok {
 		//  说明不是第一次查询，我们为其优化
 		tx = tx.Where("id < ?", lastMinPostId)
@@ -142,12 +148,12 @@ func (info *postInfoDao_) SeniorGetPostPage(pageargs PageArgs, lastMinPostId uin
 
 // UpdatePostByInfo 根据 PostInfo 结构体来更新字段
 func (info *postInfoDao_) UpdatePostByInfo(postId uint32, postInfo PostInfo) error {
-	return info.DB.Model(&PostInfo{}).Where("id = ?", postId).Updates(postInfo).Error
+	return info.DB.Model(&PostInfo{}).Where("id = ? and status = ?", postId, PostOk).Updates(postInfo).Error
 }
 
 // DeletePostById  根据id删除帖子信息
 func (info *postInfoDao_) DeletePostById(postId uint32) error {
-	return info.DB.Model(&PostInfo{}).Where("id = ?", postId).Delete(&PostInfo{}).Error
+	return info.DB.Model(&PostInfo{}).Where("id = ? and status = ?", postId, PostOk).Delete(&PostInfo{}).Error
 }
 
 // --------------------------------------------------

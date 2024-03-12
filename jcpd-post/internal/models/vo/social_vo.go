@@ -25,5 +25,6 @@ type publishCommentVo struct {
 }
 
 type deleteCommentVo struct {
-	PostId uint32 `json:"post_id"`
+	PostId    uint32 `json:"post_id"`
+	CommentId uint32 `json:"comment_id"`
 }

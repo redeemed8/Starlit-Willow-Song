@@ -253,9 +253,64 @@ func (h *SocialHandler) PublishComment(ctx *gin.Context) {
 
 // DeleteComment   删除评论
 // api : /posts/social/comment/delete  [post]
-// post_args : {"post_id":xxx}  json  LOGIN
+// post_args : {"post_id":xxx,"comment_id":xxx}  json  LOGIN
 func (h *SocialHandler) DeleteComment(ctx *gin.Context) {
-	ctx.JSON(200, "testing")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 绑定参数
+	var deleteVo = vo.SocialVoHelper.NewSocialVo().DeleteCommentVo
+	if err := ctx.ShouldBind(&deleteVo); err != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	//	3. 校验 id
+	if deleteVo.PostId < 1 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PostNotFound))
+		return
+	}
+	if deleteVo.CommentId < 1 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.CommentNotFormat))
+		return
+	}
+	//	4. 查 帖子id
+	queryPost, err1 := models.PostInfoDao.GetPostById(deleteVo.PostId)
+	if h.errs.CheckMysqlErr(err1) {
+		constants.MysqlErr("根据id获取帖子信息出错", err1)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryPost.Title == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PostNotFound))
+		return
+	}
+	//	5. 查 评论id
+	queryComment, err2 := models.CommentInfoDao.GetCommentById(deleteVo.CommentId)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("根据id获取评论信息出错", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryComment.Id == 0 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.CommentNotFormat))
+		return
+	}
+	//	6. 校验 是否是评论的发布人
+	if userClaim.Id != queryComment.PublisherId {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotCommentPublisher))
+		return
+	}
+	//	7. 删除 评论
+	err3 := models.CommentInfoDao.DeleteCommentById(deleteVo.PostId)
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("根据id删除评论信息失败", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(200, resp.Success("删除评论成功"))
 }
 
 // GetNewestComment   获取最新发布评论
