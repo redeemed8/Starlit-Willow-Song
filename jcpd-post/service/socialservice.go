@@ -1,9 +1,11 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"gorm.io/gorm"
 	common "jcpd.cn/common/models"
 	"jcpd.cn/post/internal/constants"
 	"jcpd.cn/post/internal/models"
@@ -248,6 +250,13 @@ func (h *SocialHandler) PublishComment(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
+	//	6. 将帖子的评论数 +1
+	err3 := models.PostInfoDao.UpdatePostByInfo(publishVo.PostId, models.PostInfo{Comments: queryPost.Comments + 1})
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("更新帖子评论数出错", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
 	ctx.JSON(200, resp.Success(commentinfo.Id))
 }
 
@@ -304,9 +313,16 @@ func (h *SocialHandler) DeleteComment(ctx *gin.Context) {
 		return
 	}
 	//	7. 删除 评论
-	err3 := models.CommentInfoDao.DeleteCommentById(deleteVo.PostId)
+	err3 := models.CommentInfoDao.DeleteCommentById(deleteVo.CommentId)
 	if h.errs.CheckMysqlErr(err3) {
 		constants.MysqlErr("根据id删除评论信息失败", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	8. 将贴子的评论数-1
+	err4 := models.PostInfoDao.UpdatePostByInfo(deleteVo.PostId, models.PostInfo{Comments: queryPost.Comments - 1})
+	if h.errs.CheckMysqlErr(err4) {
+		constants.MysqlErr("更新帖子评论数出错", err4)
 		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
 		return
 	}
@@ -316,5 +332,44 @@ func (h *SocialHandler) DeleteComment(ctx *gin.Context) {
 // GetNewestComment   获取最新发布评论
 // api : /posts/social/comment/getnew?id=xxx&pagenum=xxx&pagesize=xxx  [get]  LOGIN
 func (h *SocialHandler) GetNewestComment(ctx *gin.Context) {
-	ctx.JSON(200, "testing")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, userClaim := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	postIdStr := ctx.Query("id")
+	pageNumStr := ctx.Query("pagenum")
+	pageSizeStr := ctx.Query("pagesize")
+	//	3. 参数校验
+	postId, err1 := strconv.Atoi(postIdStr)
+	if postIdStr == "" || postId == 0 || err1 != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(definition.InvalidArgs))
+		return
+	}
+	page, err2 := models.PostInfoUtil.CheckPage(pageNumStr, pageSizeStr)
+	if err2 != nil {
+		ctx.JSON(http.StatusBadRequest, resp.Fail(*err2))
+		return
+	}
+	//	4. 查询帖子id的存在性
+	queryPost, err9 := models.PostInfoDao.GetPostById(uint32(postId))
+	if h.errs.CheckMysqlErr(err9) {
+		constants.MysqlErr("根据id获取帖子信息出错", err9)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	if queryPost.Title == "" {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.PostNotFound))
+		return
+	}
+	//	5. 批量获取评论
+	comments, err3 := models.CommentInfoDao.GetNewComment(uint32(postId), page)
+	if err3 != nil && !errors.Is(err3, gorm.ErrRecordNotFound) {
+		constants.MysqlErr("根据时间查询最新评论出错", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	ctx.JSON(http.StatusOK, resp.Success(comments.ToDtos(userClaim.Id)))
 }

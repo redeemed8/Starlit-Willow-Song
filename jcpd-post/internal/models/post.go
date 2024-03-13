@@ -59,7 +59,7 @@ func (info *postInfoDao_) CreateTable() {
 // GetAllIds 获取所有帖子 id
 func (info *postInfoDao_) GetAllIds() ([]uint32, error) {
 	var ids = make([]uint32, 0)
-	sql_ := "select id from" + " " + PostInfoTN + " where status = " + PostOk
+	sql_ := "select id from" + " " + PostInfoTN + " where status = '" + PostOk + "'"
 	result := info.DB.Raw(sql_).Scan(&ids)
 	return ids, result.Error
 }

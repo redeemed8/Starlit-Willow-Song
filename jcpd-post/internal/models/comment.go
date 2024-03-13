@@ -2,6 +2,7 @@ package models
 
 import (
 	"gorm.io/gorm"
+	"jcpd.cn/post/internal/models/dto"
 	"jcpd.cn/post/internal/options"
 	"jcpd.cn/post/utils"
 	"time"
@@ -54,6 +55,32 @@ func (info *commentInfoDao_) GetCommentById(id uint32) (CommentInfo, error) {
 // DeleteCommentById 根据id删除评论
 func (info *commentInfoDao_) DeleteCommentById(id uint32) error {
 	return info.DB.Model(&CommentInfo{}).Where("id = ?", id).Delete(&CommentInfo{}).Error
+}
+
+func (info *commentInfoDao_) GetNewComment(postId uint32, page PageArgs) (CommentInfos, error) {
+	var comments = make(CommentInfos, 0)
+	info.DB.Model(&CommentInfo{}).Where("post_id = ?", postId).
+		Order("created_at DESC").
+		Limit(page.PageSize).Offset((page.PageNum - 1) * page.PageSize).Find(&comments)
+	return comments, nil
+}
+
+// ------------------------------------
+
+type CommentInfos []CommentInfo
+
+func (comments *CommentInfos) ToDtos(curUserId uint32) dto.CommentInfoDtos {
+	dtos := make(dto.CommentInfoDtos, 0)
+	for _, dto_ := range *comments {
+		dtos = append(dtos, dto.CommentInfoDto{
+			Id:            dto_.Id,
+			CreatedAt:     dto_.CreatedAt,
+			PublisherName: dto_.PublisherName,
+			Body:          dto_.Body,
+			IsOwner:       dto_.PublisherId == curUserId,
+		})
+	}
+	return dtos
 }
 
 // ------------------------------------
