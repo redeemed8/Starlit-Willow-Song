@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"jcpd.cn/post/internal/models"
+	"jcpd.cn/talk/internal/models"
 )
 
 // Router 路由接口

@@ -1,0 +1,24 @@
+# 应用配置
+application:
+  server:
+    port: 6063
+    name: project-talk
+
+# redis 配置
+redis:
+  addr: 127.0.0.1:6379
+  password:
+  DB: 2
+  poolSize: 10
+  minIdleConn: 5
+
+# 这里我不同服务使用了同一个数据库，正常来说，应该给每个服务都配置一个独立的数据库以提高性能，而且故障互补影响
+
+# mysql 配置
+mysql:
+  dsn:
+    user: root
+    password: 123456
+    addr: 127.0.0.1:3306
+  basename: sws
+  others: charset=utf8mb4&parseTime=True&loc=Local
