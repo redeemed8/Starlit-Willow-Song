@@ -168,20 +168,6 @@ func (util *UserInfoUtil_) GetDefaultName() string {
 	return DefaultNamePrefix + utils.MakeCodeWithNumber(11, rand.Intn(10))
 }
 
-//// IsLogin 是否登录
-//func (util *UserInfoUtil_) IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.UserClaims) {
-//	userClaims, err := commonJWT.ParseToken(ctx)
-//	if errors.Is(err, commonJWT.DBException) {
-//		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerError))
-//		return &definition.ServerError, userClaims
-//	}
-//	if errors.Is(err, commonJWT.NotLoginError) {
-//		ctx.JSON(http.StatusOK, resp.Fail(definition.NotLogin))
-//		return &definition.NotLogin, userClaims
-//	}
-//	return nil, userClaims
-//}
-
 // TransSex 性别转换
 func (util *UserInfoUtil_) TransSex(sexCode string) string {
 	if sexCode == Man {

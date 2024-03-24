@@ -11,6 +11,8 @@ option go_package = "jcpd-user/api/service";
 //package gen;
 package service;
 
+//  ----   登录服务   ----
+
 //  根据用户id获取用户部分信息 请求体
 message UserRequest{
   uint32 userId = 1;
@@ -22,12 +24,35 @@ message UserResponse{
   string uuid = 2;
 }
 
+//  ----   登录服务   ----
+
+//  ----   关系检验服务   ----
+
+message UserRelationDecideRequest{
+  uint32 userId = 1;
+  uint32 targetId = 2;
+  string fORg = 3;
+}
+
+message UserRelationDecideResponse{
+  bool IsRelated = 1;
+}
+
+//  ----   关系检验服务   ----
+
+
 //  用户服务
 service UserService{
   rpc GetUserById(UserRequest) returns (UserResponse) {}
+  rpc IsRelated(UserRelationDecideRequest) returns (UserRelationDecideResponse)  {}
 }
 
+
 //  先生成到一个固定目录里
-//  cd 到 jcpd-user/api/gen
+//  cd 到 jcpd-user/api/proto
 //  protoc --go_out=../gen --go_opt=paths=source_relative --go-grpc_out=../gen --go-grpc_opt=paths=source_relative .\user.proto
+
+
+
+
 

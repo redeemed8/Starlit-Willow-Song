@@ -1,14 +1,18 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	common "jcpd.cn/common/models"
 	commonJWT "jcpd.cn/common/utils/jwt"
+	"jcpd.cn/talk/api/auth"
 	"jcpd.cn/talk/internal/constants"
 	"jcpd.cn/talk/pkg/definition"
+	grpcService "jcpd.cn/user/pkg/service"
 	"net/http"
+	"strconv"
 )
 
 // TalkHandler talk路由的处理器 -- 用于管理各种接口的实现
@@ -53,6 +57,41 @@ func IsLogin(ctx *gin.Context, resp *common.Resp) (*common.NormalErr, commonJWT.
 	return nil, userClaims
 }
 
+const Friend = "friend"
+const Group = "group"
+
+func UserRelationDecide(ctx *gin.Context, resp *common.Resp, userId uint32, targetId uint32, fORg string) (bool, *common.NormalErr) {
+	request := &grpcService.UserRelationDecideRequest{UserId: userId, TargetId: targetId, FORg: fORg}
+	isRelated, err := auth.UserServiceClient.IsRelated(context.Background(), request)
+	if err != nil {
+		normalErr := common.ToNormalErr(err)
+		ctx.JSON(http.StatusOK, resp.Fail(normalErr))
+		return false, &normalErr
+	}
+	return isRelated.IsRelated, nil
+}
+
 func (h *TalkHandler) Hello(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, "hello world...")
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, _ := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+
+	a := ctx.Query("a")
+	b := ctx.Query("b")
+
+	aa, _ := strconv.Atoi(a)
+	bb, _ := strconv.Atoi(b)
+
+	//	test
+	decide, normalErr2 := UserRelationDecide(ctx, resp, uint32(aa), uint32(bb), Friend)
+
+	if normalErr2 != nil {
+		return
+	}
+
+	ctx.JSON(http.StatusOK, resp.Success(decide))
+
 }

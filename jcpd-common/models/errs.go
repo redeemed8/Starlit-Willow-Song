@@ -11,6 +11,10 @@ type NormalErr struct {
 	Msg  string
 }
 
+func MakeNormalErr(code int, msg string) *NormalErr {
+	return &NormalErr{Code: code, Msg: msg}
+}
+
 func (e *NormalErr) Err() error {
 	return status.Error(codes.Code(e.Code), e.Msg)
 }
