@@ -23,6 +23,6 @@ func (*RouterTalk) Router(r *gin.Engine) {
 	handler := service.NewTalkHandler(definition.CacheRedis)
 	talkserviceGroup := r.Group("/talk")
 	{
-		talkserviceGroup.GET("/hello", handler.Hello)
+		talkserviceGroup.GET("/ws/connect/server", handler.ConnectServer)
 	}
 }

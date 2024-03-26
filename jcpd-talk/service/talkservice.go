@@ -71,7 +71,9 @@ func UserRelationDecide(ctx *gin.Context, resp *common.Resp, userId uint32, targ
 	return isRelated.IsRelated, nil
 }
 
-func (h *TalkHandler) Hello(ctx *gin.Context) {
+// ConnectServer websocket连接服务器 - 用于消息提示，和网络检测
+// api : /talk/ws/connect/server   [get]	LOGIN
+func (h *TalkHandler) ConnectServer(ctx *gin.Context) {
 	resp := common.NewResp()
 	//	1. 校验登录
 	normalErr, _ := IsLogin(ctx, resp)
