@@ -39,7 +39,9 @@ func Run(r *gin.Engine, addr string, srvName string, stops ...func()) {
 	//	关闭其余的 服务
 	if len(stops) != 0 {
 		for _, stop := range stops {
-			stop()
+			if stop != nil {
+				stop()
+			}
 		}
 	}
 

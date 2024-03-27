@@ -24,5 +24,6 @@ func (*RouterTalk) Router(r *gin.Engine) {
 	talkserviceGroup := r.Group("/talk")
 	{
 		talkserviceGroup.GET("/ws/connect/server", handler.ConnectServer)
+		talkserviceGroup.GET("/ws/connect/friend", handler.TalkWithFriend)
 	}
 }

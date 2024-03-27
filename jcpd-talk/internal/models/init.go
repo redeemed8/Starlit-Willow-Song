@@ -13,11 +13,13 @@ func Init() {
 }
 
 func newDao() {
-
+	NewMessageInfoDao()
 }
 
 func createTables() {
 	log.Println(constants.Hint("------------------- create tables --------------------"))
+
+	MessageInfoDao.CreateTable()
 
 	log.Println(constants.Hint("------------------- create success -------------------"))
 }
