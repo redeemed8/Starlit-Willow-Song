@@ -1,8 +1,11 @@
 package models
 
 import (
+	"errors"
 	"gorm.io/gorm"
+	"jcpd.cn/talk/internal/constants"
 	"jcpd.cn/talk/internal/options"
+	"log"
 	"time"
 )
 
@@ -79,9 +82,17 @@ func (info *MessageInfoDao_) CreateMessage(message *Message) error {
 	err := info.DB.Model(&Message{}).Create(message).Error
 	if err == nil && message.Status == Unread {
 		//	因为记录已经创建，所以直接修改未读数+1即可
-
+		err0 := MessageCounterDao.AddMessageCounter(message.SenderId, message.ReceiverId)
+		if err0 != nil && !errors.Is(err0, gorm.ErrRecordNotFound) {
+			log.Println(constants.Err("递增消息未读数出错 , cause by : " + err0.Error()))
+		}
 	}
 	return err
+}
+
+// UpdateMessage  修改message信息
+func (info *MessageInfoDao_) UpdateMessage(condition map[string]interface{}, updates map[string]interface{}) error {
+	return info.DB.Model(&Message{}).Where(condition).Updates(updates).Error
 }
 
 // ------------------------------------------------------

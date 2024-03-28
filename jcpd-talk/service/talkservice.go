@@ -185,9 +185,16 @@ func (h *TalkHandler) TalkWithFriend(ctx *gin.Context) {
 		return
 	}
 	//	7. 这里是当用户进入到与另一个用户的对话页面时才使用的接口，所以在这个接口之前会获取到所有的未读消息，那么这里就应该把未读消息数置零
-
+	err7 := models.MessageCounterDao.CountToZero(uint32(target), curUserClaim.Id)
+	if h.errs.CheckMysqlErr(err7) {
+		log.Println(constants.Err("未读消息数置零出错 , cause by : " + err7.Error()))
+	}
 	//	8. 因为对方有可能不在线，所以我们要创建一个未读消息记录表，用来存取未读消息的数量
-
+	err8 := models.MessageCounterDao.CreateMessageCounter(curUserClaim.Id, uint32(target))
+	if err8 != nil {
+		log.Println(constants.Err("创建未读消息数量表出错 , cause by : " + err8.Error()))
+		return
+	}
 	//	9. 开启监听
 	timer := time.NewTimer(constants.WebsocketTimeout)
 	done := make(chan struct{})
@@ -218,6 +225,11 @@ func (h *TalkHandler) TalkWithFriend(ctx *gin.Context) {
 				if err123 := targetConn.WriteMessage(websocket.TextMessage, msg); err123 != nil {
 					log.Println(constants.Err("消息发送异常 , cause by : " + err123.Error()))
 					break
+				}
+				//	然后将消息保存到数据库
+				err999 := models.MessageInfoDao.CreateMessage(&models.Message{SenderId: curUserClaim.Id, ReceiverId: uint32(target), Content: string(msg), Status: models.Readed})
+				if err999 != nil {
+					_ = conn.WriteMessage(websocket.TextMessage, []byte("消息发送失败，服务器异常"))
 				}
 			}
 			//	通知对方有新消息
