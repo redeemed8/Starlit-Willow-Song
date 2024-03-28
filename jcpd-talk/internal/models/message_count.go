@@ -21,8 +21,8 @@ func NewMessageCounterDao() {
 
 type MessageCounter struct {
 	Id         int    `gorm:"primaryKey;autoIncrement"`  //  主键 id
-	SendToRece string `gorm:"size:22;index:send_rece"`   //	发送人和接收人的id组合
-	UnreadNum  uint16 `gorm:"default:0;index:send_rece"` //	未读消息数
+	SendToRece string `gorm:"size:22;index:send_rece"`   //	 发送人和接收人的id组合
+	UnreadNum  uint16 `gorm:"default:0;index:send_rece"` //	 未读消息数
 }
 
 const MessageCounterTN = "1455_message_counter"

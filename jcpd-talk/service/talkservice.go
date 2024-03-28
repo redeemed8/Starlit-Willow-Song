@@ -153,6 +153,7 @@ func (h *TalkHandler) TalkWithFriend(ctx *gin.Context) {
 	target, err1 := strconv.Atoi(ctx.Query("target"))
 	if err1 != nil || target < 1 {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.UserNotFound))
+		return
 	}
 	//	3. 检查是否和当前用户是好友关系 - 防止恶意连接请求
 	decide, normalErr2 := UserRelationDecide(ctx, resp, curUserClaim.Id, uint32(target), Friend)
@@ -254,4 +255,84 @@ func (h *TalkHandler) TalkWithFriend(ctx *gin.Context) {
 		return
 	}
 
+}
+
+// GetUnReadMessageCount  获取和某人对话中的未读消息数量
+// api : /talk/message/unread/count?auth=xxx&target=xxx  [get]  LOGIN
+func (h *TalkHandler) GetUnReadMessageCount(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, curUserClaim := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	target, err1 := strconv.Atoi(ctx.Query("target"))
+	if err1 != nil || target < 1 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserNotFound))
+		return
+	}
+	//	3. 因为grpc请求比普通http请求更耗时，所以这里我们不检查他们是不是好友关系，就算不是好友关系，返回0也是没什么问题的
+	//	   就是要进行一次count的全表遍历，那也比grpc的请求快得多了，而且可以考虑使用redis缓存来优化不是好友的问题
+	counter, err2 := models.MessageCounterDao.GetUnreadCounter(uint32(target), curUserClaim.Id)
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("获取未读消息数量时出错", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	4. 返回未读数量
+	ctx.JSON(http.StatusOK, resp.Success(counter))
+}
+
+const ReadedMax = 50
+
+// GetHistoryAndUnreadMsg  获取和某人的历史消息和未读消息
+// api : /talk/message/info/detail?auth=xxx&target=xxx  [get]  LOGIN
+func (h *TalkHandler) GetHistoryAndUnreadMsg(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, curUserClaim := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	target, err1 := strconv.Atoi(ctx.Query("target"))
+	if err1 != nil || target < 1 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UserNotFound))
+		return
+	}
+	//	3. 检测互相是否是好友
+	decide, normalErr2 := UserRelationDecide(ctx, resp, curUserClaim.Id, uint32(target), Friend)
+	if normalErr2 != nil {
+		return
+	}
+	if !decide {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotFriend))
+		return
+	}
+	//	4. 是好友，先获取50条历史消息，按时间正向排序
+	history, err2 := models.MessageInfoDao.GetMessage(curUserClaim.Id, uint32(target), models.ForwardSort, models.Readed, ReadedMax)
+	if errors.Is(err2, models.UnknownMessageStatus) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnknownMessageStatus))
+		return
+	}
+	if h.errs.CheckMysqlErr(err2) {
+		constants.MysqlErr("获取历史消息失败", err2)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	5. 获取所有未读消息，按时间正向排序
+	unread, err3 := models.MessageInfoDao.GetMessage(curUserClaim.Id, uint32(target), models.ForwardSort, models.Unread, models.ALL)
+	if errors.Is(err3, models.UnknownMessageStatus) {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.UnknownMessageStatus))
+		return
+	}
+	if h.errs.CheckMysqlErr(err3) {
+		constants.MysqlErr("获取未读消息失败", err3)
+		ctx.JSON(http.StatusOK, resp.Fail(definition.ServerMaintaining))
+		return
+	}
+	//	6. 返回所有消息
+	ret := gin.H{"history": history, "unread": unread}
+	ctx.JSON(http.StatusOK, resp.Success(ret))
 }

@@ -42,7 +42,7 @@ func (message *Message) TableName() string {
 type Messages []Message
 
 func (msgs *Messages) ToStrings() []string {
-	var contents []string
+	var contents = make([]string, 0)
 	for _, msg := range *msgs {
 		contents = append(contents, msg.Content)
 	}
@@ -54,8 +54,12 @@ func (info *MessageInfoDao_) CreateTable() {
 	_ = info.DB.AutoMigrate(&Message{})
 }
 
+var UnknownMessageStatus = errors.New("UnknownMessageStatus")
+
+const ALL = -10086
+
 // GetMessage  根据对话双方id，获取消息内容，默认为正向排序，默认获取50条
-func (info *MessageInfoDao_) GetMessage(curUserId uint32, targetId uint32, sortBy string, status string, limit int) []string {
+func (info *MessageInfoDao_) GetMessage(curUserId uint32, targetId uint32, sortBy string, status string, limit int) ([]string, error) {
 	var msgs = make(Messages, 0)
 	//	排序方式
 	if sortBy == ReverseSort {
@@ -65,16 +69,19 @@ func (info *MessageInfoDao_) GetMessage(curUserId uint32, targetId uint32, sortB
 	}
 	//	阅读状态
 	if status != Unread && status != Readed {
-		return make([]string, 0)
+		return make([]string, 0), UnknownMessageStatus
 	}
 	//	获取数量
-	if limit < 1 {
+	if limit < 1 && limit != ALL {
 		limit = 50
 	}
 	//	查询数据库
-	info.DB.Model(&Message{}).Where("sender_id = ? AND receiver_id = ? AND status = ?", curUserId, targetId, status).
-		Limit(limit).Order(sortBy).Find(&msgs)
-	return msgs.ToStrings()
+	tx := info.DB.Model(&Message{}).Where("sender_id = ? AND receiver_id = ? AND status = ?", curUserId, targetId, status)
+	if limit != ALL {
+		tx = tx.Limit(limit)
+	}
+	result := tx.Order(sortBy).Find(&msgs)
+	return msgs.ToStrings(), result.Error
 }
 
 // CreateMessage  创建一条新消息，如果是未读消息应该将未读数+1

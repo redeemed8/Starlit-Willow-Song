@@ -13,5 +13,6 @@ var (
 
 	//	....
 
-	NotFriend = common.NormalErr{Code: 5001, Msg: "你们还不是好友呢，请先添加为好友"}
+	NotFriend            = common.NormalErr{Code: 5001, Msg: "你们还不是好友呢，请先添加为好友"}
+	UnknownMessageStatus = common.NormalErr{Code: 5002, Msg: "获取消息失败，未知消息状态"}
 )
