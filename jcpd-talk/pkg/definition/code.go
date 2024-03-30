@@ -9,10 +9,14 @@ var (
 	DataLoading       = common.NormalErr{Code: 1004, Msg: "数据加载中，请稍后再试"}
 
 	UserNotFound = common.NormalErr{Code: 3034, Msg: "未找到相关的用户信息"}
-	NotLogin     = common.NormalErr{Code: 3041, Msg: "未登录或登录已过期"}
+
+	NotLogin = common.NormalErr{Code: 3041, Msg: "未登录或登录已过期"}
+
+	GroupNotFound = common.NormalErr{Code: 3084, Msg: "该群不存在或已被解散"}
 
 	//	....
 
 	NotFriend            = common.NormalErr{Code: 5001, Msg: "你们还不是好友呢，请先添加为好友"}
 	UnknownMessageStatus = common.NormalErr{Code: 5002, Msg: "获取消息失败，未知消息状态"}
+	NotGroup             = common.NormalErr{Code: 5003, Msg: "你还不是该群的成员，无法进行发言"}
 )

@@ -336,3 +336,31 @@ func (h *TalkHandler) GetHistoryAndUnreadMsg(ctx *gin.Context) {
 	ret := gin.H{"history": history, "unread": unread}
 	ctx.JSON(http.StatusOK, resp.Success(ret))
 }
+
+// TalkWithGroup  群聊天
+// api : /talk/ws/connect/group?auth=xxx&target=xxx  [get]  LOGIN
+func (h *TalkHandler) TalkWithGroup(ctx *gin.Context) {
+	resp := common.NewResp()
+	//	1. 校验登录
+	normalErr, curUserClaim := IsLogin(ctx, resp)
+	if normalErr != nil {
+		return
+	}
+	//	2. 获取路径参数
+	target, err1 := strconv.Atoi(ctx.Query("target"))
+	if err1 != nil || target < 1 {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.GroupNotFound))
+		return
+	}
+	//	3. 检查是否是该群的成员 - 防止恶意连接
+	decide, normalErr2 := UserRelationDecide(ctx, resp, curUserClaim.Id, uint32(target), Group)
+	if normalErr2 != nil {
+		return
+	}
+	if !decide {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotGroup))
+		return
+	}
+	//	4. 是群成员, 升级连接为websocket连接
+
+}

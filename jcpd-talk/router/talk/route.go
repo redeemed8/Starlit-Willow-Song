@@ -28,5 +28,7 @@ func (*RouterTalk) Router(r *gin.Engine) {
 
 		talkserviceGroup.GET("/message/unread/count", handler.GetUnReadMessageCount)
 		talkserviceGroup.GET("/message/info/detail", handler.GetHistoryAndUnreadMsg)
+
+		talkserviceGroup.GET("/ws/connect/group", handler.TalkWithGroup)
 	}
 }

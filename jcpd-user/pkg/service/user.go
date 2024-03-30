@@ -54,6 +54,14 @@ func (u *UserService) IsRelated(ctx context.Context, request *UserRelationDecide
 	if request.FORg == models.Friend {
 		stringList = queryUser.FriendList
 	} else if request.FORg == models.Group {
+		//	群聊的话，要先确认群的存在性
+		queryGroup, err123 := models.GroupInfoDao.GetGroupInfoById(request.TargetId)
+		if err123 != nil && !errors.Is(err123, gorm.ErrRecordNotFound) {
+			return nil, definition.ServerMaintaining.Err()
+		}
+		if queryGroup.Id < 1 {
+			return nil, definition.GroupNotFound.Err()
+		}
 		stringList = queryUser.GroupList
 	} else {
 		return nil, common.MakeNormalErr(definition.InvalidFOrg.Code, definition.InvalidFOrg.Msg+request.FORg).Err()
