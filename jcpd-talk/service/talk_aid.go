@@ -80,3 +80,24 @@ func (manager *ClientConnManager) LoadClientConn(curUserId uint32, targetId uint
 	}
 	return conn
 }
+
+//  ---------------------------------------------------------------------------------
+
+type GroupClient struct {
+	msgChan chan []byte
+	ConnMap map[uint32]*websocket.Conn
+}
+
+type GroupClientManager struct {
+	Clients [10]map[uint32]*GroupClient
+}
+
+func NewGroupClientManager() *GroupClientManager {
+	var maps [10]map[uint32]*GroupClient
+	for i := 0; i < 10; i++ {
+		maps[i] = make(map[uint32]*GroupClient)
+	}
+	return &GroupClientManager{Clients: maps}
+}
+
+var GroupManager = NewGroupClientManager()
