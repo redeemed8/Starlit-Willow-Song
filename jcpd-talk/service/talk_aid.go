@@ -83,21 +83,52 @@ func (manager *ClientConnManager) LoadClientConn(curUserId uint32, targetId uint
 
 //  ---------------------------------------------------------------------------------
 
-type GroupClient struct {
-	msgChan chan []byte
-	ConnMap map[uint32]*websocket.Conn
-}
-
 type GroupClientManager struct {
-	Clients [10]map[uint32]*GroupClient
+	Groups map[uint32]*GroupInfo
 }
 
-func NewGroupClientManager() *GroupClientManager {
-	var maps [10]map[uint32]*GroupClient
-	for i := 0; i < 10; i++ {
-		maps[i] = make(map[uint32]*GroupClient)
-	}
-	return &GroupClientManager{Clients: maps}
+type GroupInfo struct {
+	ConnMaps [10]map[uint32]*websocket.Conn
+	C        chan []byte
 }
 
 var GroupManager = NewGroupClientManager()
+
+func NewGroupClientManager() *GroupClientManager {
+	return &GroupClientManager{Groups: make(map[uint32]*GroupInfo)}
+}
+
+func (groupManager *GroupClientManager) getPosMap(groupInfo *GroupInfo, curUserId uint32) *map[uint32]*websocket.Conn {
+	index := curUserId % 10           //	 取个位数得到其在组中的位置
+	return &groupInfo.ConnMaps[index] //	得到其所在的map
+}
+
+func (groupManager *GroupClientManager) AddUserToGroupConns(userId uint32, groupId uint32, conn *websocket.Conn) {
+	group := groupManager.Groups[groupId] //  尝试获取群id对应的结果
+	if group == nil {                     //  如果不存在，为其赋值
+		var maps [10]map[uint32]*websocket.Conn
+		for i := 0; i < 10; i++ {
+			maps[i] = make(map[uint32]*websocket.Conn)
+		}
+		groupManager.Groups[groupId] = &GroupInfo{ConnMaps: maps}
+		group = groupManager.Groups[groupId]
+	}
+	posMap := groupManager.getPosMap(group, userId) //  在当前群中 找到 该用户的位置
+	(*posMap)[userId] = conn                        //  添加用户连接
+}
+
+func (groupManager *GroupClientManager) DelUserConnFromGroup(userId uint32, groupId uint32) {
+	group := groupManager.Groups[groupId]
+	if group == nil {
+		return
+	}
+	posMap := groupManager.getPosMap(group, userId) //  在当前群中 找到 该用户的位置
+	if posMap == nil {
+		return
+	}
+	delete(*posMap, userId)
+}
+
+func (groupManager *GroupClientManager) GetGroup(groupId uint32) *GroupInfo {
+	return groupManager.Groups[groupId]
+}

@@ -361,6 +361,12 @@ func (h *TalkHandler) TalkWithGroup(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, resp.Fail(definition.NotGroup))
 		return
 	}
-	//	4. 是群成员, 升级连接为websocket连接
+	//	4. 是群成员, 检测其与服务器之间的通信
+	ServerConn := ConnManager.LoadClientConn(curUserClaim.Id, ConnManager.ServerKey)
+	if ServerConn == nil {
+		ctx.JSON(http.StatusOK, resp.Fail(definition.NotServerConn))
+		return
+	}
+	//	5. 与服务器正常，将当前连接升级为websocket连接
 
 }

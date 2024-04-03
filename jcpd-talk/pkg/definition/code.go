@@ -19,4 +19,5 @@ var (
 	NotFriend            = common.NormalErr{Code: 5001, Msg: "你们还不是好友呢，请先添加为好友"}
 	UnknownMessageStatus = common.NormalErr{Code: 5002, Msg: "获取消息失败，未知消息状态"}
 	NotGroup             = common.NormalErr{Code: 5003, Msg: "你还不是该群的成员，无法进行发言"}
+	NotServerConn        = common.NormalErr{Code: 5004, Msg: "请先与服务器建立连接"}
 )
